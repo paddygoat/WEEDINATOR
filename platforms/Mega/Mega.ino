@@ -13,8 +13,8 @@ const int USING_GPS_HEADING   = 49;
 
 const uint8_t MEGA_I2C_ADDR   = 26;
 
-const uint32_t BLUE_LED_BLINK_PERIOD =  200; // ms
-const uint16_t BEEP_FREQUENCY        = 2500; // Hz
+const uint32_t HEARTBEAT_PERIOD =  200; // ms
+const uint16_t BEEP_FREQUENCY   = 2500; // Hz
 
 
 #include <Wire.h>
@@ -56,8 +56,6 @@ long latitude;
 long longitude;
 
 int sendDataState = LOW;
-unsigned long millisCalc1;
-unsigned long previousMillis1;
 
 double compass;
 float autoXMax = -1000;
@@ -206,7 +204,7 @@ void loop()
   }// While GPS is available
 
   digitalWrite( ORANGE_LED, LOW );
-  blueLED();
+  heartbeat();
 
 ///////////////////////////////////////////////////////////////////////
   static int i = 0;
@@ -289,25 +287,20 @@ void loop()
   }
 ////////////////////////////////////////////////////////////////////////////
 } // Main loop end
-void blueLED()
+
+uint32_t lastHeartbeat;
+
+void heartbeat()
 {
-  digitalWrite(BLUE_LED, ledBlueState);
-  unsigned long currentMillis = millis();
-  millisCalc1 = currentMillis - previousMillis1;
-  if (millisCalc1 >= BLUE_LED_BLINK_PERIOD)
+  uint32_t currentMillis = millis();
+
+  if ((currentMillis - lastHeartbeat) >= HEARTBEAT_PERIOD)
   {
-    if (ledBlueState == LOW)
-    {
-      ledBlueState = HIGH;
-    }
-    else
-    {
-      ledBlueState = LOW;
-     }
-     //compassCount++;
-     previousMillis1 = currentMillis;
+    lastHeartbeat = currentMillis;
+    digitalWrite( BLUE_LED, !digitalRead(BLUE_LED) ); // toggle
+    //compassCount++;
   }
-}
+} // heartbeat
 
 
 void requestEvent()
