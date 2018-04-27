@@ -182,7 +182,7 @@ void loop()
       zbearing = ubloxBearing * 100; //Float to integer. zbearing is sent to TC275.
       DEBUG_PORT.print("Bearing:         ");DEBUG_PORT.println(ubloxBearing,5); 
       DEBUG_PORT.print("Compass Heading: ");DEBUG_PORT.println(compass); 
-      Serial.println("");
+      DEBUG_PORT.println("");
     } 
     //else     // If there's no valid fix, machine will drive in straight line until fix recieved or pixie overides it.
     //{
@@ -242,27 +242,27 @@ void loop()
     if (i%50==0) 
     {
       //sprintf(buf, "Detected %d:\n", blocks);
-      Serial.println(buf); // Empties serial buffer.
+      DEBUG_PORT.println(buf); // Empties serial buffer.
       for (j=0; j<blocks; j++)
       {
         long size = pixy.blocks[j].height * pixy.blocks[j].width;   
-        Serial.print("No. of blocks: ");Serial.println(blocks);
-        Serial.print("Block no.:     ");Serial.println(j+1);
-        Serial.print("Size:          ");Serial.println(size);
-        Serial.print("Max. size:     ");Serial.println(maxSize);
-        Serial.print("PAN POS:       ");Serial.println(panError);
-        Serial.print("TILT POS:      ");Serial.println(tiltError);
+        DEBUG_PORT.print("No. of blocks: ");DEBUG_PORT.println(blocks);
+        DEBUG_PORT.print("Block no.:     ");DEBUG_PORT.println(j+1);
+        DEBUG_PORT.print("Size:          ");DEBUG_PORT.println(size);
+        DEBUG_PORT.print("Max. size:     ");DEBUG_PORT.println(maxSize);
+        DEBUG_PORT.print("PAN POS:       ");DEBUG_PORT.println(panError);
+        DEBUG_PORT.print("TILT POS:      ");DEBUG_PORT.println(tiltError);
         //sprintf(buf, "  block %d: ", j);
-        //Serial.print(buf); 
+        //DEBUG_PORT.print(buf); 
         pixy.blocks[j].print();
-        Serial.println("");
+        DEBUG_PORT.println("");
       }
     }
   // Overide compass module with object recognition:
     if(panError > 300)
     {   
-    Serial.print("PAN POS:       ");Serial.println(panError);
-    Serial.print("TILT POS:      ");Serial.println(tiltError); 
+    DEBUG_PORT.print("PAN POS:       ");DEBUG_PORT.println(panError);
+    DEBUG_PORT.print("TILT POS:      ");DEBUG_PORT.println(tiltError); 
     //compassModule();
     }
     
@@ -283,10 +283,10 @@ void loop()
 
       if (newSize > maxSize)
       {
-        //Serial.print("newSize:      ");Serial.println(newSize);
+        //DEBUG_PORT.print("newSize:      ");DEBUG_PORT.println(newSize);
         trackedBlock = k;
         maxSize = newSize;
-        //Serial.print("maxSize:      ");Serial.println(maxSize);
+        //DEBUG_PORT.print("maxSize:      ");DEBUG_PORT.println(maxSize);
       }
     }
   }
@@ -313,12 +313,12 @@ void blueLED()
 }
 void requestEvent() 
 {
-  //Serial.println("Request event start  ");
+  //DEBUG_PORT.println("Request event start  ");
   Wire.write(url);     // as expected by master
   digitalWrite(I2C_REQUEST,HIGH);
   delay(100);
   digitalWrite(I2C_REQUEST,LOW);
-  //Serial.println("Request event end  ");
+  //DEBUG_PORT.println("Request event end  ");
 }
 void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
 {
@@ -330,7 +330,7 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //digitalWrite(I2C_RECEIVE,HIGH);
   delay(100);
   //digitalWrite(I2C_RECEIVE,LOW);
-  //Serial.println("Recieve event start  ");
+  //DEBUG_PORT.println("Recieve event start  ");
   //DEBUG_PORT.println("Here is data from TC275: "); 
   while (Wire.available())
   {
@@ -380,7 +380,7 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //DEBUG_PORT.print("longitude integer from Fona: ");DEBUG_PORT.println(longitude);
   //DEBUG_PORT.println();
   //NeoGPS::Location_t base( latitude, longitude);
-  //Serial.println("Recieve event end  ");
+  //DEBUG_PORT.println("Recieve event end  ");
 }
 void lookForLettersAndDigits()
 {
