@@ -13,8 +13,8 @@ const int USING_GPS_HEADING   = 49;
 
 const uint8_t MEGA_I2C_ADDR   = 26;
 
-const uint32_t BLUE_LED_BLINK_PERIOD = 200; // ms
-const uint16_t BEEP_FREQUENCY = 2500;
+const uint32_t BLUE_LED_BLINK_PERIOD =  200; // ms
+const uint16_t BEEP_FREQUENCY        = 2500; // Hz
 
 
 #include <Wire.h>
@@ -91,9 +91,9 @@ ServoLoop tiltLoop(500, 700);
 
 ServoLoop::ServoLoop(int32_t pgain, int32_t dgain)
 {
-  m_pos = PIXY_RCS_CENTER_POS;
-  m_pgain = pgain;
-  m_dgain = dgain;
+  m_pos       = PIXY_RCS_CENTER_POS;
+  m_pgain     = pgain;
+  m_dgain     = dgain;
   m_prevError = 0x80000000L;
 }
 
@@ -223,10 +223,12 @@ void loop()
   if (blocks)
   {
     digitalWrite(PIXY_PROCESSING,HIGH);
-    panError = X_CENTER-pixy.blocks[0].x;
-    tiltError = pixy.blocks[0].y-Y_CENTER;
+    panError  = X_CENTER - pixy.blocks[0].x;
     panLoop.update(panError);
+
+    tiltError = pixy.blocks[0].y - Y_CENTER;
     tiltLoop.update(tiltError);
+
     blockCount = blocks;
     i++;
 
@@ -316,14 +318,13 @@ void requestEvent()
 }
 void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
 {
+  //digitalWrite(I2C_RECEIVE,HIGH);
     a="";
     lat="";
     lon="";
     latString="";
     lonString="";
-  //digitalWrite(I2C_RECEIVE,HIGH);
   delay(100);
-  //digitalWrite(I2C_RECEIVE,LOW);
   //DEBUG_PORT.println( F("Recieve event start  ") );
   //DEBUG_PORT.println( F("Here is data from TC275: ") );
   while (Wire.available())
@@ -366,10 +367,10 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   }    // While Loop
 
   long result = latString.toInt();
-  if(result!=0){latitude = result;}
+  if(result!=0) { latitude = result; }
 
   result = lonString.toInt();
-  if(result!=0){longitude = result *-1;}
+  if(result!=0) { longitude = -result; } // <--  Why negative?  Sent wrong?
 
   //DEBUG_PORT.print( F("latString: ") );DEBUG_PORT.println(latString);
   //DEBUG_PORT.print( F("lonString: ") );DEBUG_PORT.println(lonString);
@@ -378,6 +379,7 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //DEBUG_PORT.println();
   //NeoGPS::Location_t base( latitude, longitude);
   //DEBUG_PORT.println( F("Recieve event end  ") );
+  //digitalWrite(I2C_RECEIVE,LOW);
 }
 
 void characterCompileA() // For sending Ublox bearing and distance data to TC275
@@ -434,25 +436,25 @@ void compassModule()
   float xxBlob = magEvent.magnetic.x;
   float yyBlob = magEvent.magnetic.y;
   //DEBUG_PORT.println( F("####################### 4") );
-if((xxBlob!=0)&&(yyBlob!=0))
-  {
-  if(xxBlob>autoXMax)
+  if((xxBlob!=0)&&(yyBlob!=0))
     {
-      autoXMax = xxBlob;
+    if(xxBlob>autoXMax)
+      {
+        autoXMax = xxBlob;
+      }
+    if(xxBlob<autoXMin)
+      {
+        autoXMin = xxBlob;
+      }
+    if(yyBlob>autoYMax)
+      {
+        autoYMax = yyBlob;
+      }
+    if(yyBlob<autoYMin)
+      {
+        autoYMin = yyBlob;
+      }
     }
-  if(xxBlob<autoXMin)
-    {
-      autoXMin = xxBlob;
-    }
-  if(yyBlob>autoYMax)
-    {
-      autoYMax = yyBlob;
-    }
-  if(yyBlob<autoYMin)
-    {
-      autoYMin = yyBlob;
-    }
-  }
 
 // Now normalise to min -50 and max 50:
   //DEBUG_PORT.println( F("####################### 5") );
