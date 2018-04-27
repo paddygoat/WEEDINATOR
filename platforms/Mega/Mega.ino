@@ -382,72 +382,7 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //NeoGPS::Location_t base( latitude, longitude);
   //DEBUG_PORT.println( F("Recieve event end  ") );
 }
-void lookForLettersAndDigits()
-{
-  lookForLetters();
-  lookForDigits();
-  lookForLatitude();
-  lookForLongitude();
-}
-void lookForLetters()
-{
-    if (isAlpha(c))         // analyse c for letters
-    {
-      //DEBUG_PORT.print( F("LETTER") );
-      a=a+c;                // string = string + character
-      if (a=="LAT")
-      {
-       lon="";
-       lat=a;
-       //DEBUG_PORT.print( F("Trigger word LAT detected!: ") );//DEBUG_PORT.println(b);
-       a="";
-      }
-      if (a=="LON")
-      {
-       lat="";
-       lon=a;
-       //DEBUG_PORT.print( F("Trigger word LON detected!: ") );//DEBUG_PORT.println(d);
-       a="";
-      }
-    }
-}
-void lookForDigits()
-{
-  if (lat=="LAT")
-  {
-    if (isDigit(c))         // analyse c for numerical digit
-    {
-      latString=latString+c;                // string = string + character
-    }
-  }
-  if (lon=="LON")
-  {
-    if (isDigit(c))         // analyse c for numerical digit
-    {
-      lonString=lonString+c;                // string = string + character
-    }
-  }
-}
-void lookForLatitude()
-{
-  if (lat=="LAT")
-  {
-      result=(latString).toInt();
-      latitude = result;
-      //DEBUG_PORT.println();
-      //DEBUG_PORT.print( F("Latitude: ") );DEBUG_PORT.println(latitude);
-  }
-}
-void lookForLongitude()
-{
-  if (lon=="LON")
-  {
-      result=(lonString).toInt();
-      longitude = result;
-      //DEBUG_PORT.println();
-      //DEBUG_PORT.print( F("Longitude: ") );DEBUG_PORT.println(longitude);
-  }
-}
+
 void characterCompileA() // For sending Ublox bearing and distance data to TC275
 {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -465,6 +400,7 @@ void characterCompileA() // For sending Ublox bearing and distance data to TC275
   // DEBUG_PORT.println();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
+
 void characterCompileB() // For sending Ublox lat and long to TC275
 {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
