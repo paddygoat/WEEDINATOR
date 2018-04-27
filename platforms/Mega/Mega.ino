@@ -124,11 +124,11 @@ void setup()
   mag.enableAutoRange(true);
 
   /* Initialise the sensor */
-  DEBUG_PORT.println("TEST2");
+  DEBUG_PORT.println( F("TEST2") );
   if(!mag.begin())
   {
     /* There was a problem detecting the LSM303 ... check your connections */
-    DEBUG_PORT.println("Ooops, no LSM303 detected ... Check your wiring!");
+    DEBUG_PORT.println( F("Ooops, no LSM303 detected ... Check your wiring!") );
     while(1);
   }
 
@@ -173,16 +173,16 @@ void loop()
       //prevFix = fix;
 
       
-      DEBUG_PORT.print("Zheading:             ");DEBUG_PORT.println(zheading,2);      
-      //DEBUG_PORT.print("Range:             ");DEBUG_PORT.println(range,9);  
+      DEBUG_PORT.print( F("Zheading:             ") );DEBUG_PORT.println(zheading,2);      
+      //DEBUG_PORT.print( F("Range:             ") );DEBUG_PORT.println(range,9);  
       zdistance = range * MM_PER_KM;
-      DEBUG_PORT.print("Distance mm:             ");DEBUG_PORT.println(zdistance);     
+      DEBUG_PORT.print( F("Distance mm:             ") );DEBUG_PORT.println(zdistance);     
       ubloxBearing = fix.location.BearingTo( base )*57.2958; // Radians to degrees
       bearing = ubloxBearing;
       zbearing = ubloxBearing * 100; //Float to integer. zbearing is sent to TC275.
-      DEBUG_PORT.print("Bearing:         ");DEBUG_PORT.println(ubloxBearing,5); 
-      DEBUG_PORT.print("Compass Heading: ");DEBUG_PORT.println(compass); 
-      DEBUG_PORT.println("");
+      DEBUG_PORT.print( F("Bearing:         ") );DEBUG_PORT.println(ubloxBearing,5); 
+      DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass); 
+      DEBUG_PORT.println();
     } 
     //else     // If there's no valid fix, machine will drive in straight line until fix recieved or pixie overides it.
     //{
@@ -192,11 +192,11 @@ void loop()
       //DEBUG_PORT.print( '.' );
       zz = (fix.location.lat()); // zz is a 'long integer'.
       yy = (fix.location.lon());
-      //DEBUG_PORT.print("Current Ublox latitude:  ");DEBUG_PORT.println(zz);
-      //DEBUG_PORT.print("Latitude from Fona:      ");DEBUG_PORT.println(latitude);
-      //DEBUG_PORT.print("Current Ublox longitude: ");DEBUG_PORT.println(yy);
-      //DEBUG_PORT.print("Longitude from Fona:     ");DEBUG_PORT.println(longitude);
-      //DEBUG_PORT.println("");
+      //DEBUG_PORT.print( F("Current Ublox latitude:  ") );DEBUG_PORT.println(zz);
+      //DEBUG_PORT.print( F("Latitude from Fona:      ") );DEBUG_PORT.println(latitude);
+      //DEBUG_PORT.print( F("Current Ublox longitude: ") );DEBUG_PORT.println(yy);
+      //DEBUG_PORT.print( F("Longitude from Fona:     ") );DEBUG_PORT.println(longitude);
+      //DEBUG_PORT.println();
       
       if (sendDataState == LOW) // This switches data set that is transmitted to TC275 via I2C.
       {
@@ -246,23 +246,23 @@ void loop()
       for (j=0; j<blocks; j++)
       {
         long size = pixy.blocks[j].height * pixy.blocks[j].width;   
-        DEBUG_PORT.print("No. of blocks: ");DEBUG_PORT.println(blocks);
-        DEBUG_PORT.print("Block no.:     ");DEBUG_PORT.println(j+1);
-        DEBUG_PORT.print("Size:          ");DEBUG_PORT.println(size);
-        DEBUG_PORT.print("Max. size:     ");DEBUG_PORT.println(maxSize);
-        DEBUG_PORT.print("PAN POS:       ");DEBUG_PORT.println(panError);
-        DEBUG_PORT.print("TILT POS:      ");DEBUG_PORT.println(tiltError);
+        DEBUG_PORT.print( F("No. of blocks: ") );DEBUG_PORT.println(blocks);
+        DEBUG_PORT.print( F("Block no.:     ") );DEBUG_PORT.println(j+1);
+        DEBUG_PORT.print( F("Size:          ") );DEBUG_PORT.println(size);
+        DEBUG_PORT.print( F("Max. size:     ") );DEBUG_PORT.println(maxSize);
+        DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
+        DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
         //sprintf(buf, "  block %d: ", j);
         //DEBUG_PORT.print(buf); 
         pixy.blocks[j].print();
-        DEBUG_PORT.println("");
+        DEBUG_PORT.println();
       }
     }
   // Overide compass module with object recognition:
     if(panError > 300)
     {   
-    DEBUG_PORT.print("PAN POS:       ");DEBUG_PORT.println(panError);
-    DEBUG_PORT.print("TILT POS:      ");DEBUG_PORT.println(tiltError); 
+    DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
+    DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError); 
     //compassModule();
     }
     
@@ -283,10 +283,10 @@ void loop()
 
       if (newSize > maxSize)
       {
-        //DEBUG_PORT.print("newSize:      ");DEBUG_PORT.println(newSize);
+        //DEBUG_PORT.print( F("newSize:      ") );DEBUG_PORT.println(newSize);
         trackedBlock = k;
         maxSize = newSize;
-        //DEBUG_PORT.print("maxSize:      ");DEBUG_PORT.println(maxSize);
+        //DEBUG_PORT.print( F("maxSize:      ") );DEBUG_PORT.println(maxSize);
       }
     }
   }
@@ -313,12 +313,12 @@ void blueLED()
 }
 void requestEvent() 
 {
-  //DEBUG_PORT.println("Request event start  ");
+  //DEBUG_PORT.println( F("Request event start  ") );
   Wire.write(url);     // as expected by master
   digitalWrite(I2C_REQUEST,HIGH);
   delay(100);
   digitalWrite(I2C_REQUEST,LOW);
-  //DEBUG_PORT.println("Request event end  ");
+  //DEBUG_PORT.println( F("Request event end  ") );
 }
 void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
 {
@@ -330,28 +330,28 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //digitalWrite(I2C_RECEIVE,HIGH);
   delay(100);
   //digitalWrite(I2C_RECEIVE,LOW);
-  //DEBUG_PORT.println("Recieve event start  ");
-  //DEBUG_PORT.println("Here is data from TC275: "); 
+  //DEBUG_PORT.println( F("Recieve event start  ") );
+  //DEBUG_PORT.println( F("Here is data from TC275: ") ); 
   while (Wire.available())
   {
     char c = Wire.read(); // receive byte as a character
-   // DEBUG_PORT.print(c); //DEBUG_PORT.print("Q");          // print the character
+   // DEBUG_PORT.print(c); //DEBUG_PORT.print( 'Q' );          // print the character
       if (isAlpha(c))         // analyse c for letters
       {
-      //DEBUG_PORT.print("LETTER");
+      //DEBUG_PORT.print( F("LETTER") );
       a=a+c;                // string = string + character
       if (a=="LAT")
       {
        lon="";
        lat=a;
-       //DEBUG_PORT.print(" Trigger word LAT detected!: ");//DEBUG_PORT.println(b);
+       //DEBUG_PORT.print( F(" Trigger word LAT detected!: ") );//DEBUG_PORT.println(b);
        a="";
       } 
       if (a=="LONG")
       {
        lat="";
        lon=a;
-       //DEBUG_PORT.print(" Trigger word LONG detected!: ");//DEBUG_PORT.println(d);
+       //DEBUG_PORT.print( F(" Trigger word LONG detected!: ") );//DEBUG_PORT.println(d);
        a="";
       } 
     } 
@@ -374,13 +374,13 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   if(result!=0){latitude = result;}
   result=(lonString).toInt();
   if(result!=0){longitude = result *-1;}
-  //DEBUG_PORT.print("latString: ");DEBUG_PORT.println(latString);
-  //DEBUG_PORT.print("lonString: ");DEBUG_PORT.println(lonString);
-  //DEBUG_PORT.print("latitude integer from Fona:  ");DEBUG_PORT.println(latitude);
-  //DEBUG_PORT.print("longitude integer from Fona: ");DEBUG_PORT.println(longitude);
+  //DEBUG_PORT.print( F("latString: ") );DEBUG_PORT.println(latString);
+  //DEBUG_PORT.print( F("lonString: ") );DEBUG_PORT.println(lonString);
+  //DEBUG_PORT.print( F("latitude integer from Fona:  ") );DEBUG_PORT.println(latitude);
+  //DEBUG_PORT.print( F("longitude integer from Fona: ") );DEBUG_PORT.println(longitude);
   //DEBUG_PORT.println();
   //NeoGPS::Location_t base( latitude, longitude);
-  //DEBUG_PORT.println("Recieve event end  ");
+  //DEBUG_PORT.println( F("Recieve event end  ") );
 }
 void lookForLettersAndDigits()
 {
@@ -393,20 +393,20 @@ void lookForLetters()
 {
     if (isAlpha(c))         // analyse c for letters
     {
-      //DEBUG_PORT.print("LETTER");
+      //DEBUG_PORT.print( F("LETTER") );
       a=a+c;                // string = string + character
       if (a=="LAT")
       {
        lon="";
        lat=a;
-       //DEBUG_PORT.print("Trigger word LAT detected!: ");//DEBUG_PORT.println(b);
+       //DEBUG_PORT.print( F("Trigger word LAT detected!: ") );//DEBUG_PORT.println(b);
        a="";
       } 
       if (a=="LON")
       {
        lat="";
        lon=a;
-       //DEBUG_PORT.print("Trigger word LON detected!: ");//DEBUG_PORT.println(d);
+       //DEBUG_PORT.print( F("Trigger word LON detected!: ") );//DEBUG_PORT.println(d);
        a="";
       } 
     } 
@@ -434,8 +434,8 @@ void lookForLatitude()
   {
       result=(latString).toInt();
       latitude = result;
-      //DEBUG_PORT.println("");
-      //DEBUG_PORT.print("Latitude: ");DEBUG_PORT.println(latitude);
+      //DEBUG_PORT.println();
+      //DEBUG_PORT.print( F("Latitude: ") );DEBUG_PORT.println(latitude);
   }
 }
 void lookForLongitude()
@@ -444,8 +444,8 @@ void lookForLongitude()
   {
       result=(lonString).toInt();
       longitude = result;
-      //DEBUG_PORT.println("");
-      //DEBUG_PORT.print("Longitude: ");DEBUG_PORT.println(longitude);
+      //DEBUG_PORT.println();
+      //DEBUG_PORT.print( F("Longitude: ") );DEBUG_PORT.println(longitude);
   }
 }
 void characterCompileA() // For sending Ublox bearing and distance data to TC275
@@ -454,15 +454,15 @@ void characterCompileA() // For sending Ublox bearing and distance data to TC275
 // This is where the data is compiled into a character ....
   dataString =  initiator  + "BEAR" + zbearing + "DIST" + zdistance + "COMP" + compass;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
   int n = dataString.length();
-  //DEBUG_PORT.print("Data string to send:     "); DEBUG_PORT.println(dataString);   
-  //DEBUG_PORT.print("Size of string:  "); DEBUG_PORT.println(n);
+  //DEBUG_PORT.print( F("Data string to send:     ") ); DEBUG_PORT.println(dataString);   
+  //DEBUG_PORT.print( F("Size of string:  ") ); DEBUG_PORT.println(n);
   // Builds the url character:
       for (int aa=0;aa<=n;aa++)                                              
       {
           url[aa] = dataString[aa];
       }
-   //DEBUG_PORT.print("Character data to send:  "); DEBUG_PORT.println(url);
-  // DEBUG_PORT.println("");
+   //DEBUG_PORT.print( F("Character data to send:  ") ); DEBUG_PORT.println(url);
+  // DEBUG_PORT.println();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
 }
 void characterCompileB() // For sending Ublox lat and long to TC275
@@ -471,25 +471,25 @@ void characterCompileB() // For sending Ublox lat and long to TC275
 // This is where the data is compiled into a character ....
   dataString =  initiator  + "LOON" + yy + "LAAT" + zz;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
   int n = dataString.length();
-  // DEBUG_PORT.print("Data string to send:     ");// DEBUG_PORT.println(dataString);   
-   //DEBUG_PORT.print("Size of string:  ");// DEBUG_PORT.println(n);
+  // DEBUG_PORT.print( F("Data string to send:     ") );// DEBUG_PORT.println(dataString);   
+   //DEBUG_PORT.print( F("Size of string:  ") );// DEBUG_PORT.println(n);
   // Builds the url character:
       for (int aa=0;aa<=n;aa++)                                              
       {
           url[aa] = dataString[aa];
       }
-   //DEBUG_PORT.print("Character data to send to TC275:  "); DEBUG_PORT.println(url);
-   //DEBUG_PORT.println("");
+   //DEBUG_PORT.print( F("Character data to send to TC275:  ") ); DEBUG_PORT.println(url);
+   //DEBUG_PORT.println();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
 }
 void compassModule()
 {
-  //DEBUG_PORT.println("####################### 1"); 
+  //DEBUG_PORT.println( F("####################### 1") ); 
   sensors_event_t magEvent; 
-  //DEBUG_PORT.println("####################### 1.5"); 
+  //DEBUG_PORT.println( F("####################### 1.5") ); 
   delay(100);
   mag.getEvent(&magEvent);  // This is where the problem is!!!!!!!!!!!!!!!!
-  //DEBUG_PORT.println("####################### 2");  
+  //DEBUG_PORT.println( F("####################### 2") );  
 
 // Observed readings (integers)
 int xMin =  -19.45;
@@ -497,10 +497,10 @@ int xMax =  23.27;
 int yMin = -49.82;
 int yMax =  -9.82;
 
-  //DEBUG_PORT.println("####################### 3");
+  //DEBUG_PORT.println( F("####################### 3") );
   xxBlob = magEvent.magnetic.x;
   yyBlob = magEvent.magnetic.y;
-  //DEBUG_PORT.println("####################### 4");
+  //DEBUG_PORT.println( F("####################### 4") );
 if((xxBlob!=0)&&(yyBlob!=0))
   {
   if(xxBlob>autoXMax)
@@ -522,10 +522,10 @@ if((xxBlob!=0)&&(yyBlob!=0))
   }
 
 // Now normalise to min -50 and max 50:
-  //DEBUG_PORT.println("####################### 5");
+  //DEBUG_PORT.println( F("####################### 5") );
   xxx = ((magEvent.magnetic.x - xMin)*100/(xMax-xMin))-50;
   yyy = ((magEvent.magnetic.y - yMin)*100/(yMax-yMin))-50;
-  //DEBUG_PORT.println("####################### 6");
+  //DEBUG_PORT.println( F("####################### 6") );
   compass = atan2( yyy, xxx ) * RAD_TO_DEG;
   compass = compass + 270 +15; //Lower this value to make clockwise turn.
   
@@ -540,10 +540,10 @@ if((xxBlob!=0)&&(yyBlob!=0))
     digitalWrite(USING_GPS_HEADING,LOW);
   }
   
-  DEBUG_PORT.print("autoXMin:  "); DEBUG_PORT.println(autoXMin);
-  DEBUG_PORT.print("autoXMax:  "); DEBUG_PORT.println(autoXMax);
-  DEBUG_PORT.print("autoYMin:  "); DEBUG_PORT.println(autoYMin);
-  DEBUG_PORT.print("autoYMax:  "); DEBUG_PORT.println(autoYMax);  
-  //DEBUG_PORT.print("Compass Heading: ");DEBUG_PORT.println(compass); 
-  //DEBUG_PORT.println("");
+  DEBUG_PORT.print( F("autoXMin:  ") ); DEBUG_PORT.println(autoXMin);
+  DEBUG_PORT.print( F("autoXMax:  ") ); DEBUG_PORT.println(autoXMax);
+  DEBUG_PORT.print( F("autoYMin:  ") ); DEBUG_PORT.println(autoYMin);
+  DEBUG_PORT.print( F("autoYMax:  ") ); DEBUG_PORT.println(autoYMax);  
+  //DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass); 
+  //DEBUG_PORT.println();
 }
