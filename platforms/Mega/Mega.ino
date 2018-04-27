@@ -1,4 +1,4 @@
-#include <Arduino.h>
+
 #include <NMEAGPS.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -8,11 +8,10 @@
 Pixy pixy;
 #define X_CENTER        ((PIXY_MAX_X-PIXY_MIN_X)/2)       
 #define Y_CENTER        ((PIXY_MAX_Y-PIXY_MIN_Y)/2)
-Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
+Adafruit_LSM303_Mag_Unified mag(12345);
 String initiator;
 String dataString;
 char url[120];
-String nothing;
 long x = 12345678;
 long zz;
 long yy;
@@ -51,7 +50,6 @@ long maxSize;
 long newSize;
 float zheading;
 float ubloxBearing;
-//String prevFix;    //???????
 
 class ServoLoop
 {
