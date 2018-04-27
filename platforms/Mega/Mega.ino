@@ -58,12 +58,7 @@ long longitude;
 int sendDataState = LOW;
 
 double compass;
-float autoXMax = -1000;
-float autoXMin =  1000;
-float autoYMax = -1000;
-float autoYMin =  1000;
-unsigned long compassCount =0;
-int ledBlueState = LOW;
+
 int oldSignature;  //  <-- what is this used for?  Never set, so always 0
 int blockCount;
 long maxSize;
@@ -446,6 +441,10 @@ void characterCompileB()
 
 ////////////////////////////////////////////////////////////////////////////
 
+float autoXMax = -1000.0;
+float autoXMin =  1000.0;
+float autoYMax = -1000.0;
+float autoYMin =  1000.0;
 //unsigned long compassCount = 0;
 
 void compassModule()
