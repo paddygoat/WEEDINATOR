@@ -1,3 +1,21 @@
+#define DEBUG_PORT Serial
+#define gpsPort    Serial1
+const uint32_t GPS_BAUD = 19200;
+
+
+const int SPEAKER     = 10;
+const int I2C_REQUEST = 12;
+const int I2C_RECEIVE = 13;
+const int BLUE_LED    = 37;
+const int ORANGE_LED  = 39;
+const int PIXY_PROCESSING = 47;
+const int USING_GPS_HEADING = 49;
+
+const uint8_t MEGA_I2C_ADDR   = 26;
+
+const uint32_t BLUE_LED_BLINK_PERIOD = 200; // ms
+const uint16_t BEEP_FREQUENCY = 2500;
+
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -15,6 +33,10 @@ Adafruit_LSM303_Mag_Unified mag(12345);
 NMEAGPS gps;
 
 NeoGPS::Location_t base( 532558000L, -43114000L ); // Llangefni
+
+const float MM_PER_M  = 1000.0;
+const float M_PER_KM  = 1000.0;
+const float MM_PER_KM = MM_PER_M * M_PER_KM;
 
 String initiator;
 String dataString;
@@ -87,8 +109,6 @@ void ServoLoop::update(int32_t error)
   long int vel;
   char buf[32];
 }
-#define DEBUG_PORT Serial
-#define gpsPort    Serial1
 
 
 
@@ -96,11 +116,13 @@ void setup()
 {
   pixy.init();
   DEBUG_PORT.begin(115200);
-  gps_port.begin(19200);
-  Wire.begin(26);                // join i2c bus with address #25
+  gpsPort.begin( GPS_BAUD );
+
+  Wire.begin( MEGA_I2C_ADDR );
   Wire.onReceive(receiveEvent); // register event
   Wire.onRequest(requestEvent); // register event
   mag.enableAutoRange(true);
+
   /* Initialise the sensor */
   DEBUG_PORT.println("TEST2");
   if(!mag.begin())
@@ -109,37 +131,38 @@ void setup()
     DEBUG_PORT.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
-  pinMode(37,OUTPUT);
-  pinMode(39,OUTPUT);
-  pinMode(12,OUTPUT);  
-  pinMode(13,OUTPUT);  
-  pinMode(49,OUTPUT);
+
+  pinMode(BLUE_LED,OUTPUT);
+  pinMode(ORANGE_LED,OUTPUT);
+  pinMode(I2C_REQUEST,OUTPUT);  
+  pinMode(I2C_RECEIVE,OUTPUT);  
+  pinMode(USING_GPS_HEADING,OUTPUT);
   pinMode(51,OUTPUT);  
   pinMode(53,OUTPUT); 
-  digitalWrite(49,HIGH);
-  digitalWrite(47,HIGH);
+  digitalWrite(USING_GPS_HEADING,HIGH);
+  digitalWrite(PIXY_PROCESSING,HIGH);
   digitalWrite(53,LOW);
-  tone(10,2500,1000);   // pin,pitch,duration
+  tone(SPEAKER,BEEP_FREQUENCY,1000);   // pin,pitch,duration
   delay(1000);
-  digitalWrite(47,LOW);
-  digitalWrite(49,LOW);
-  noTone(10);
+  digitalWrite(PIXY_PROCESSING,LOW);
+  digitalWrite(USING_GPS_HEADING,LOW);
+  noTone(SPEAKER);
 } // setup
 
 void loop()
 {
 
   //NeoGPS::Location_t base( latitude, longitude ); // Data from FONA module
-  while (gps.available( gps_port )) 
+  while (gps.available( gpsPort )) 
   {
     gps_fix fix = gps.read(); // save the latest
     NeoGPS::Location_t base( latitude, longitude ); // Data from FONA module
     if (fix.valid.location)
     {
-      tone(10,2500,100);   // pin,pitch,duration
-      digitalWrite(39,HIGH);
+      tone(SPEAKER,BEEP_FREQUENCY,100);   // pin,pitch,duration
+      digitalWrite(ORANGE_LED,HIGH);
       delay(100);
-      noTone(10);
+      noTone(SPEAKER);
       float range = fix.location.DistanceKm( base );
       zheading = fix.heading();
 
@@ -152,7 +175,7 @@ void loop()
       
       DEBUG_PORT.print("Zheading:             ");DEBUG_PORT.println(zheading,2);      
       //DEBUG_PORT.print("Range:             ");DEBUG_PORT.println(range,9);  
-      zdistance = range*1000*1000;  // Km to mm
+      zdistance = range * MM_PER_KM;
       DEBUG_PORT.print("Distance mm:             ");DEBUG_PORT.println(zdistance);     
       ubloxBearing = fix.location.BearingTo( base )*57.2958; // Radians to degrees
       bearing = ubloxBearing;
@@ -187,7 +210,8 @@ void loop()
       }
       compassModule();
   }// While GPS is available
-  digitalWrite(39,LOW); // Orange LED
+
+  digitalWrite( ORANGE_LED, LOW );
   blueLED();
   
 ///////////////////////////////////////////////////////////////////////
@@ -205,7 +229,7 @@ void loop()
 
   if (blocks)
   {
-    digitalWrite(47,HIGH);
+    digitalWrite(PIXY_PROCESSING,HIGH);
     panError = X_CENTER-pixy.blocks[0].x;
     tiltError = pixy.blocks[0].y-Y_CENTER; 
     panLoop.update(panError);
@@ -247,7 +271,7 @@ void loop()
   }// if (blocks) end
   else
   {
-    digitalWrite(47,LOW);
+    digitalWrite(PIXY_PROCESSING,LOW);
   }
   //compassModule();
   maxSize = 0;
@@ -270,10 +294,10 @@ void loop()
 } // Main loop end
 void blueLED()
 {
-  digitalWrite(37, ledBlueState);
+  digitalWrite(BLUE_LED, ledBlueState);
   unsigned long currentMillis = millis();
   millisCalc1 = currentMillis - previousMillis1;
-  if (millisCalc1 >= 200)                           // timer  .... 2,000
+  if (millisCalc1 >= BLUE_LED_BLINK_PERIOD)
   {  
     if (ledBlueState == LOW) 
     {
@@ -291,9 +315,9 @@ void requestEvent()
 {
   //Serial.println("Request event start  ");
   Wire.write(url);     // as expected by master
-  digitalWrite(12,HIGH);
+  digitalWrite(I2C_REQUEST,HIGH);
   delay(100);
-  digitalWrite(12,LOW);
+  digitalWrite(I2C_REQUEST,LOW);
   //Serial.println("Request event end  ");
 }
 void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
@@ -303,9 +327,9 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
     lon="";
     latString="";
     lonString="";
-  //digitalWrite(13,HIGH);
+  //digitalWrite(I2C_RECEIVE,HIGH);
   delay(100);
-  //digitalWrite(13,LOW);
+  //digitalWrite(I2C_RECEIVE,LOW);
   //Serial.println("Recieve event start  ");
   //DEBUG_PORT.println("Here is data from TC275: "); 
   while (Wire.available())
@@ -466,11 +490,13 @@ void compassModule()
   delay(100);
   mag.getEvent(&magEvent);  // This is where the problem is!!!!!!!!!!!!!!!!
   //DEBUG_PORT.println("####################### 2");  
+
 // Observed readings (integers)
 int xMin =  -19.45;
 int xMax =  23.27;
 int yMin = -49.82;
 int yMax =  -9.82;
+
   //DEBUG_PORT.println("####################### 3");
   xxBlob = magEvent.magnetic.x;
   yyBlob = magEvent.magnetic.y;
@@ -500,18 +526,18 @@ if((xxBlob!=0)&&(yyBlob!=0))
   xxx = ((magEvent.magnetic.x - xMin)*100/(xMax-xMin))-50;
   yyy = ((magEvent.magnetic.y - yMin)*100/(yMax-yMin))-50;
   //DEBUG_PORT.println("####################### 6");
-  compass = (((atan2(yyy,xxx) * 180) / Pi));
+  compass = atan2( yyy, xxx ) * RAD_TO_DEG;
   compass = compass + 270 +15; //Lower this value to make clockwise turn.
   
   if (zheading!=0)
   {
     compass = zheading; // Overide compass with GPS derived heading
-    digitalWrite(49,HIGH);
+    digitalWrite(USING_GPS_HEADING,HIGH);
   }
   else                  // Makes the machine drive straight ahead.
   {
     compass = zbearing/100;
-    digitalWrite(49,LOW);
+    digitalWrite(USING_GPS_HEADING,LOW);
   }
   
   DEBUG_PORT.print("autoXMin:  "); DEBUG_PORT.println(autoXMin);
@@ -519,5 +545,5 @@ if((xxBlob!=0)&&(yyBlob!=0))
   DEBUG_PORT.print("autoYMin:  "); DEBUG_PORT.println(autoYMin);
   DEBUG_PORT.print("autoYMax:  "); DEBUG_PORT.println(autoYMax);  
   //DEBUG_PORT.print("Compass Heading: ");DEBUG_PORT.println(compass); 
-  //Serial.println("");
+  //DEBUG_PORT.println("");
 }
