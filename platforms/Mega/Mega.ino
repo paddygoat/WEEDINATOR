@@ -135,25 +135,28 @@ void setup()
   digitalWrite(USING_GPS_HEADING,HIGH);
   digitalWrite(PIXY_PROCESSING,HIGH);
   digitalWrite(53,LOW);
-  tone(SPEAKER,BEEP_FREQUENCY,1000);   // pin,pitch,duration
+
+  beep( 1000 );
+
   delay(1000);
   digitalWrite(PIXY_PROCESSING,LOW);
   digitalWrite(USING_GPS_HEADING,LOW);
-  noTone(SPEAKER);
+
 } // setup
 
 void loop()
 {
+  checkBeep();
+
   while (gps.available( gpsPort ))
   {
     gps_fix fix = gps.read(); // save the latest
 
     if (fix.valid.location)
     {
-      tone(SPEAKER,BEEP_FREQUENCY,100);   // pin,pitch,duration
+      beep(100);
       digitalWrite(ORANGE_LED,HIGH);
-      delay(100);
-      noTone(SPEAKER);
+
       float range = fix.location.DistanceKm( base );
       zheading = fix.heading();
 
@@ -305,6 +308,8 @@ void blueLED()
      previousMillis1 = currentMillis;
   }
 }
+
+
 void requestEvent()
 {
   //DEBUG_PORT.println( F("Request event start  ") );
@@ -314,6 +319,8 @@ void requestEvent()
   digitalWrite(I2C_REQUEST,LOW);
   //DEBUG_PORT.println( F("Request event end  ") );
 }
+
+
 void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
 {
   //digitalWrite(I2C_RECEIVE,HIGH);
@@ -484,4 +491,24 @@ void compassModule()
   DEBUG_PORT.print( F("autoYMax:  ") ); DEBUG_PORT.println(autoYMax);
   //DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass);
   //DEBUG_PORT.println();
+}
+
+uint32_t beepDuration;
+uint32_t beepStart;
+bool     beeping;
+
+void beep( uint32_t duration )
+{
+  beeping      = true;
+  beepStart    = millis();
+  beepDuration = duration;
+  tone( SPEAKER, BEEP_FREQUENCY, 0 );   // pin,pitch,duration (forever)
+}
+
+void checkBeep()
+{
+  if (beeping and ((millis() - beepStart) >= beepDuration)) {
+    noTone( SPEAKER );
+    beeping = false;
+  }
 }
