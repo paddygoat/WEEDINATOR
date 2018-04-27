@@ -199,6 +199,7 @@ void loop()
     } else {
       // No valid location, machine will drive in straight 
       //    line until fix received or pixie overrides it.
+      digitalWrite( ORANGE_LED, LOW );
 
       //compass = ubloxBearing;
 
