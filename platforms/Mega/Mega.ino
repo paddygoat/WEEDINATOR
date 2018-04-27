@@ -107,6 +107,7 @@ void setup()
 {
   pixy.init();
   DEBUG_PORT.begin(115200);
+  DEBUG_PORT.println( F("Mega") );
   gpsPort.begin( GPS_BAUD );
 
   Wire.begin( MEGA_I2C_ADDR );
@@ -130,6 +131,7 @@ void setup()
   pinMode(USING_GPS_HEADING,OUTPUT);
   pinMode(51,OUTPUT);
   pinMode(53,OUTPUT);
+
   digitalWrite(USING_GPS_HEADING,HIGH);
   digitalWrite(PIXY_PROCESSING,HIGH);
   digitalWrite(53,LOW);
@@ -141,6 +143,7 @@ void setup()
   digitalWrite(USING_GPS_HEADING,LOW);
 
 } // setup
+
 
 void loop()
 {
@@ -291,8 +294,10 @@ void loop()
       }
     }
   }
+
+} // loop
+
 ////////////////////////////////////////////////////////////////////////////
-} // Main loop end
 
 uint32_t lastHeartbeat;
 
@@ -304,10 +309,10 @@ void heartbeat()
   {
     lastHeartbeat = currentMillis;
     digitalWrite( BLUE_LED, !digitalRead(BLUE_LED) ); // toggle
-    //compassCount++;
   }
 } // heartbeat
 
+////////////////////////////////////////////////////////////////////////////
 
 void requestEvent()
 {
@@ -317,10 +322,15 @@ void requestEvent()
   delay(100);
   digitalWrite(I2C_REQUEST,LOW);
   //DEBUG_PORT.println( F("Request event end  ") );
-}
 
+} // requestEvent
 
-void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275 for calculating bearings and distances.
+////////////////////////////////////////////////////////////////////////////
+
+// Receive lat and long data from FONA via TC275 for 
+//   calculating bearings and distances.
+
+void receiveEvent(int howMany)
 {
   //digitalWrite(I2C_RECEIVE,HIGH);
     a="";
@@ -389,11 +399,15 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   //DEBUG_PORT.println();
   //DEBUG_PORT.println( F("Recieve event end  ") );
   //digitalWrite(I2C_RECEIVE,LOW);
-}
 
-void characterCompileA() // For sending Ublox bearing and distance data to TC275
+} // receiveEvent
+
+////////////////////////////////////////////////////////////////////////////
+
+// For sending Ublox bearing and distance data to TC275
+
+void characterCompileA()
 {
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This is where the data is compiled into a character ....
   dataString =  initiator  + "BEAR" + zbearing + "DIST" + zdistance + "COMP" + compass;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
   int n = dataString.length();
@@ -406,12 +420,15 @@ void characterCompileA() // For sending Ublox bearing and distance data to TC275
       }
    //DEBUG_PORT.print( F("Character data to send:  ") ); DEBUG_PORT.println(url);
   // DEBUG_PORT.println();
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-}
 
-void characterCompileB() // For sending Ublox lat and long to TC275
+} // characterCompileA
+
+////////////////////////////////////////////////////////////////////////////
+
+// For sending Ublox lat and long to TC275
+
+void characterCompileB()
 {
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This is where the data is compiled into a character ....
   dataString =  initiator  + "LOON" + yy + "LAAT" + zz;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
   int n = dataString.length();
@@ -424,10 +441,17 @@ void characterCompileB() // For sending Ublox lat and long to TC275
       }
    //DEBUG_PORT.print( F("Character data to send to TC275:  ") ); DEBUG_PORT.println(url);
    //DEBUG_PORT.println();
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-}
+
+} // characterCompileB
+
+////////////////////////////////////////////////////////////////////////////
+
+//unsigned long compassCount = 0;
+
 void compassModule()
 {
+  //compassCount++;
+
   //DEBUG_PORT.println( F("####################### 1") );
   sensors_event_t magEvent;
   //DEBUG_PORT.println( F("####################### 1.5") );
@@ -490,7 +514,10 @@ void compassModule()
   DEBUG_PORT.print( F("autoYMax:  ") ); DEBUG_PORT.println(autoYMax);
   //DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass);
   //DEBUG_PORT.println();
-}
+
+} // compassModule
+
+////////////////////////////////////////////////////////////////////////////
 
 uint32_t beepDuration;
 uint32_t beepStart;
