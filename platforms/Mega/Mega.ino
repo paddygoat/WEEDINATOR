@@ -1,14 +1,21 @@
 
-#include <NMEAGPS.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303_U.h>
 #include <SPI.h>  
+
 #include <Pixy.h>
 Pixy pixy;
 #define X_CENTER        ((PIXY_MAX_X-PIXY_MIN_X)/2)       
 #define Y_CENTER        ((PIXY_MAX_Y-PIXY_MIN_Y)/2)
+
+#include <Adafruit_LSM303_U.h>
 Adafruit_LSM303_Mag_Unified mag(12345);
+
+#include <NMEAGPS.h>
+NMEAGPS gps;
+
+NeoGPS::Location_t base( 532558000L, -43114000L ); // Llangefni
+
 String initiator;
 String dataString;
 char url[120];
@@ -84,9 +91,6 @@ void ServoLoop::update(int32_t error)
 #define gpsPort    Serial1
 
 
-NMEAGPS gps;
-
-NeoGPS::Location_t base( 532558000L, -43114000L ); // Llangefni
 
 void setup()
 {
