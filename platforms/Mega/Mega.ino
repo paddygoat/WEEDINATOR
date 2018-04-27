@@ -144,12 +144,10 @@ void setup()
 
 void loop()
 {
-
-  //NeoGPS::Location_t base( latitude, longitude ); // Data from FONA module
   while (gps.available( gpsPort ))
   {
     gps_fix fix = gps.read(); // save the latest
-    NeoGPS::Location_t base( latitude, longitude ); // Data from FONA module
+
     if (fix.valid.location)
     {
       tone(SPEAKER,BEEP_FREQUENCY,100);   // pin,pitch,duration
@@ -170,7 +168,7 @@ void loop()
       //DEBUG_PORT.print( F("Range:             ") );DEBUG_PORT.println(range,9);
       zdistance = range * MM_PER_KM;
       DEBUG_PORT.print( F("Distance mm:             ") );DEBUG_PORT.println(zdistance);
-      ubloxBearing = fix.location.BearingTo( base )*57.2958; // Radians to degrees
+      ubloxBearing = fix.location.BearingToDegrees( base );
       bearing = ubloxBearing;
       zbearing = ubloxBearing * 100; //Float to integer. zbearing is sent to TC275.
       DEBUG_PORT.print( F("Bearing:         ") );DEBUG_PORT.println(ubloxBearing,5);
@@ -372,12 +370,17 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
   result = lonString.toInt();
   if(result!=0) { longitude = -result; } // <--  Why negative?  Sent wrong?
 
+  if ((latitude != 0) and (longitude != 0)) {
+    // Received a new base location  
+    base.lat( latitude );
+    base.lon( longitude );
+  }
+
   //DEBUG_PORT.print( F("latString: ") );DEBUG_PORT.println(latString);
   //DEBUG_PORT.print( F("lonString: ") );DEBUG_PORT.println(lonString);
   //DEBUG_PORT.print( F("latitude integer from Fona:  ") );DEBUG_PORT.println(latitude);
   //DEBUG_PORT.print( F("longitude integer from Fona: ") );DEBUG_PORT.println(longitude);
   //DEBUG_PORT.println();
-  //NeoGPS::Location_t base( latitude, longitude);
   //DEBUG_PORT.println( F("Recieve event end  ") );
   //digitalWrite(I2C_RECEIVE,LOW);
 }
