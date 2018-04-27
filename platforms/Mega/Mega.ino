@@ -82,35 +82,8 @@ void ServoLoop::update(int32_t error)
   long int vel;
   char buf[32];
 }
-//======================================================================
-//  Program: NMEAdistance.ino
-//
-//  Description:  Display distance from a base location.
-//
-//  Prerequisites:
-//     1) NMEA.ino works with your device (correct TX/RX pins and baud rate)
-//     2) GPS_FIX_LOCATION has been enabled.
-//     3) A sentence that contains lat/long has been enabled (GGA, GLL or RMC).
-//     4) Your device sends at least one of those sentences.
-//
-//  'Serial' is for debug output to the Serial Monitor window.
-//
-//======================================================================
-
-#if defined( UBRR1H ) | defined( ID_USART0 )
-  // Default is to use Serial1 when available.  You could also
-  // use NeoHWSerial, especially if you want to handle GPS characters
-  // in an Interrupt Service Routine.
-  //#include <NeoHWSerial.h>
-#else  
-  // Only one serial port is available, uncomment one of the following:
-  //#include <NeoICSerial.h>
-  //#include <AltSoftSerial.h>
-  #include <NeoSWSerial.h>
-  //#include <SoftwareSerial.h> /* NOT RECOMMENDED */
-#endif
-#include "GPSport.h"
 #define DEBUG_PORT Serial
+#define gpsPort    Serial1
 
 
 NMEAGPS gps;
