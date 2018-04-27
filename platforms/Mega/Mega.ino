@@ -144,9 +144,10 @@ void setup()
 
 void loop()
 {
+  heartbeat();
   checkBeep();
 
-  while (gps.available( gpsPort ))
+  if (gps.available( gpsPort ))
   {
     gps_fix fix = gps.read(); // save the latest
 
@@ -175,13 +176,7 @@ void loop()
       DEBUG_PORT.print( F("Bearing:         ") );DEBUG_PORT.println(ubloxBearing,5);
       DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass);
       DEBUG_PORT.println();
-    }
-    //else     // If there's no valid fix, machine will drive in straight line until fix recieved or pixie overides it.
-    //{
-    //  compass = ubloxBearing;
-    //}
-      // Waiting...
-      //DEBUG_PORT.print( '.' );
+
       zz = (fix.location.lat()); // zz is a 'long integer'.
       yy = (fix.location.lon());
       //DEBUG_PORT.print( F("Current Ublox latitude:  ") );DEBUG_PORT.println(zz);
@@ -200,11 +195,21 @@ void loop()
         characterCompileB(); // Longitude and latitude
         sendDataState = LOW;
       }
-      compassModule();
-  }// While GPS is available
 
-  digitalWrite( ORANGE_LED, LOW );
-  heartbeat();
+    } else {
+      // No valid location, machine will drive in straight 
+      //    line until fix received or pixie overrides it.
+
+      //compass = ubloxBearing;
+
+      // Waiting...
+      //DEBUG_PORT.print( '.' );
+    }
+
+    compassModule();
+
+  }
+
 
 ///////////////////////////////////////////////////////////////////////
   static int i = 0;
