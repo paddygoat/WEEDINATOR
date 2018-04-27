@@ -41,7 +41,7 @@ const float MM_PER_KM = MM_PER_M * M_PER_KM;
 String initiator;
 String dataString;
 char url[120];
-long x = 12345678;
+
 long zz;
 long yy;
 float bearing;
@@ -54,18 +54,11 @@ String lon;
 String a;
 long latitude;
 long longitude;
-char c;
-long result;
+
 int sendDataState = LOW;
 unsigned long millisCalc1;
 unsigned long previousMillis1;
-int ledState;
-float xxBlob;
-float yyBlob;
-float xxx;
-float yyy;
-float zzz;
-float Pi = 3.14159;
+
 double compass;
 float autoXMax = -1000;
 float autoXMin =  1000;
@@ -73,7 +66,7 @@ float autoYMax = -1000;
 float autoYMin =  1000;
 unsigned long compassCount =0;
 int ledBlueState = LOW;
-int oldX, oldY, oldSignature;
+int oldSignature;  //  <-- what is this used for?  Never set, so always 0
 int blockCount;
 long maxSize;
 long newSize;
@@ -274,6 +267,7 @@ void loop()
     digitalWrite(PIXY_PROCESSING,LOW);
   }
   //compassModule();
+
   maxSize = 0;
   for (int k = 0; k < blockCount; k++)
   {
@@ -370,10 +364,13 @@ void receiveEvent(int howMany) // Recieves lat and long data from FONA via TC275
         }
       }
   }    // While Loop
-  result=(latString).toInt();
+
+  long result = latString.toInt();
   if(result!=0){latitude = result;}
-  result=(lonString).toInt();
+
+  result = lonString.toInt();
   if(result!=0){longitude = result *-1;}
+
   //DEBUG_PORT.print( F("latString: ") );DEBUG_PORT.println(latString);
   //DEBUG_PORT.print( F("lonString: ") );DEBUG_PORT.println(lonString);
   //DEBUG_PORT.print( F("latitude integer from Fona:  ") );DEBUG_PORT.println(latitude);
@@ -434,8 +431,8 @@ void compassModule()
   int yMax =  -9.82;
 
   //DEBUG_PORT.println( F("####################### 3") );
-  xxBlob = magEvent.magnetic.x;
-  yyBlob = magEvent.magnetic.y;
+  float xxBlob = magEvent.magnetic.x;
+  float yyBlob = magEvent.magnetic.y;
   //DEBUG_PORT.println( F("####################### 4") );
 if((xxBlob!=0)&&(yyBlob!=0))
   {
@@ -459,8 +456,8 @@ if((xxBlob!=0)&&(yyBlob!=0))
 
 // Now normalise to min -50 and max 50:
   //DEBUG_PORT.println( F("####################### 5") );
-  xxx = ((magEvent.magnetic.x - xMin)*100/(xMax-xMin))-50;
-  yyy = ((magEvent.magnetic.y - yMin)*100/(yMax-yMin))-50;
+  float xxx = ((magEvent.magnetic.x - xMin)*100/(xMax-xMin))-50;
+  float yyy = ((magEvent.magnetic.y - yMin)*100/(yMax-yMin))-50;
   //DEBUG_PORT.println( F("####################### 6") );
   compass = atan2( yyy, xxx ) * RAD_TO_DEG;
   compass = compass + 270 +15; //Lower this value to make clockwise turn.
