@@ -16,6 +16,14 @@ const uint8_t MEGA_I2C_ADDR   = 26;
 const uint32_t HEARTBEAT_PERIOD =  200; // ms
 const uint16_t BEEP_FREQUENCY   = 2500; // Hz
 
+////////////////////////////////////////////////
+// Changing one of these flags to false will
+//   disable the code for that device.  This is
+//   handy for my testing.
+
+static const bool usePixy    = true;
+static const bool useCompass = true;
+static const bool useI2C     = true;
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -99,23 +107,29 @@ void ServoLoop::update(int32_t error)
 
 void setup()
 {
-  pixy.init();
   DEBUG_PORT.begin(115200);
   DEBUG_PORT.println( F("Mega") );
+
   gpsPort.begin( GPS_BAUD );
 
-  Wire.begin( MEGA_I2C_ADDR );
-  Wire.onReceive(receiveEvent); // register event
-  Wire.onRequest(requestEvent); // register event
-  mag.enableAutoRange(true);
+  if (usePixy)
+    pixy.init();
 
-  /* Initialise the sensor */
-  DEBUG_PORT.println( F("TEST2") );
-  if(!mag.begin())
-  {
-    /* There was a problem detecting the LSM303 ... check your connections */
-    DEBUG_PORT.println( F("Ooops, no LSM303 detected ... Check your wiring!") );
-    while(1);
+  if (useI2C) {
+    Wire.begin( MEGA_I2C_ADDR );
+    Wire.onReceive(receiveEvent); // register event
+    Wire.onRequest(requestEvent); // register event
+  }
+
+  if (useCompass) {
+    mag.enableAutoRange(true);
+
+    if(!mag.begin())
+    {
+      /* There was a problem detecting the LSM303 ... check your connections */
+      DEBUG_PORT.println( F("Ooops, no LSM303 detected ... Check your wiring!") );
+      while(1);
+    }
   }
 
   pinMode(BLUE_LED,OUTPUT);
@@ -216,6 +230,9 @@ void loop()
 
 void pixyModule()
 {
+  if (not usePixy)
+    return;
+
   static       uint8_t frameCount         = 0;
   static const uint8_t PRINT_FRAME_PERIOD = 50;
 
@@ -450,6 +467,9 @@ float autoYMin =  1000.0;
 
 void compassModule()
 {
+  if (not useCompass)
+    return;
+
   //compassCount++;
 
   //DEBUG_PORT.println( F("####################### 1") );
