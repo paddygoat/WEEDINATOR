@@ -177,26 +177,38 @@ void loop()
       //prevFix = fix;
 
 
-      DEBUG_PORT.print( F("Zheading:             ") );DEBUG_PORT.println(zheading,2);
-      //DEBUG_PORT.print( F("Range:             ") );DEBUG_PORT.println(range,9);
+      DEBUG_PORT.print( F("Zheading:             ") );
+      DEBUG_PORT.println(zheading,2);
+      
       zdistance = range * MM_PER_KM;
-      DEBUG_PORT.print( F("Distance mm:             ") );DEBUG_PORT.println(zdistance);
+      DEBUG_PORT.print( F("Distance mm:             ") );
+      DEBUG_PORT.println(zdistance);
+
       ubloxBearing = fix.location.BearingToDegrees( base );
       bearing = ubloxBearing;
       zbearing = ubloxBearing * 100; //Float to integer. zbearing is sent to TC275.
-      DEBUG_PORT.print( F("Bearing:         ") );DEBUG_PORT.println(ubloxBearing,5);
-      DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass);
+      
+      DEBUG_PORT.print( F("Bearing:         ") );
+      DEBUG_PORT.println(ubloxBearing,5);
+      DEBUG_PORT.print( F("Compass Heading: ") );
+      DEBUG_PORT.println(compass);
       DEBUG_PORT.println();
 
       zz = (fix.location.lat()); // zz is a 'long integer'.
       yy = (fix.location.lon());
-      //DEBUG_PORT.print( F("Current Ublox latitude:  ") );DEBUG_PORT.println(zz);
-      //DEBUG_PORT.print( F("Latitude from Fona:      ") );DEBUG_PORT.println(latitude);
-      //DEBUG_PORT.print( F("Current Ublox longitude: ") );DEBUG_PORT.println(yy);
-      //DEBUG_PORT.print( F("Longitude from Fona:     ") );DEBUG_PORT.println(longitude);
+
+      //DEBUG_PORT.print( F("Current Ublox latitude:  ") );
+      //DEBUG_PORT.println(zz);
+      //DEBUG_PORT.print( F("Latitude from Fona:      ") );
+      //DEBUG_PORT.println(latitude);
+      //DEBUG_PORT.print( F("Current Ublox longitude: ") );
+      //DEBUG_PORT.println(yy);
+      //DEBUG_PORT.print( F("Longitude from Fona:     ") );
+      //DEBUG_PORT.println(longitude);
       //DEBUG_PORT.println();
 
-      if (sendDataState == LOW) // This switches data set that is transmitted to TC275 via I2C.
+      // This switches data set that is transmitted to TC275 via I2C.
+      if (sendDataState == LOW)
       {
         characterCompileA(); // Bearing, distance and compass
         sendDataState = HIGH;
