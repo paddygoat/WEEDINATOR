@@ -73,6 +73,8 @@ long newSize;
 float zheading;
 float ubloxBearing;
 
+////////////////////////////////////////////////////////////////////////////
+
 class ServoLoop
 {
 public:
@@ -103,7 +105,7 @@ void ServoLoop::update(int32_t error)
   char buf[32];
 }
 
-
+////////////////////////////////////////////////////////////////////////////
 
 void setup()
 {
@@ -155,9 +157,17 @@ void setup()
 
 void loop()
 {
-  heartbeat();
-  checkBeep();
+  heartbeat ();
+  checkBeep ();
+  checkGPS  ();
+  pixyModule();
 
+} // loop
+
+////////////////////////////////////////////////////////////////////////////
+
+void checkGPS()
+{
   if (gps.available( gpsPort ))
   {
     gps_fix fix = gps.read(); // save the latest
@@ -233,10 +243,7 @@ void loop()
     compassModule();
 
   }
-
-  pixyModule();
-
-} // loop
+} // checkGPS
 
 ////////////////////////////////////////////////////////////////////////////
 
