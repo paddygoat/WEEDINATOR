@@ -1,26 +1,22 @@
-/**
- * @file Time.h
- * @version 1.0
- *
- * @section License
- * Copyright (C) 2014, SlashDevin
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * This file is part of the NeoGPS project.  Based on the execellent
- * framework, Cosa, by Mikael Patel.
- */
-
 #ifndef TIME_H
 #define TIME_H
+
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <Arduino.h>
 
@@ -108,8 +104,7 @@ struct time_t {
 
   /**
    * Offset by a number of seconds.
-   * @param[in] seconds to offset.
-   * @return *this
+   * @param[in] offset in seconds.
    */
   void operator +=( clock_t offset )
     { *this = offset + operator clock_t(); }
@@ -194,7 +189,7 @@ struct time_t {
 
   /**
    * Determine the day of the week for the specified day number
-   * @param[in] day number as counted from January 1 of the epoch year.
+   * @param[in] dayno number as counted from January 1 of the epoch year.
    * @return weekday number 1..7, as for the /day/ member.
    */
   static uint8_t weekday_for(uint16_t dayno)
@@ -290,8 +285,8 @@ protected:
     static uint8_t  s_epoch_weekday;
   #else
     static const uint16_t s_epoch_year    = Y2K_EPOCH_YEAR;
-    static const uint8_t  s_pivot_year    = 00;
-    static const uint8_t  s_epoch_offset  = 00;
+    static const uint8_t  s_pivot_year    = s_epoch_year % 100;
+    static const uint8_t  s_epoch_offset  = s_pivot_year;
     static const uint8_t  s_epoch_weekday = Y2K_EPOCH_WEEKDAY;
   #endif
 

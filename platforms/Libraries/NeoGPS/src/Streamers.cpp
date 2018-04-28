@@ -1,3 +1,20 @@
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "Streamers.h"
 #include "NMEAGPS.h"
 
@@ -58,6 +75,10 @@ const char gps_fix_header[] __PROGMEM =
 
   #if defined(GPS_FIX_SPEED)
     "Spd,"
+  #endif
+
+  #ifdef GPS_FIX_VELNED
+    "Vel N,E,D,"
   #endif
 
   #if defined(GPS_FIX_ALTITUDE)
@@ -199,6 +220,17 @@ Print & operator <<( Print &outs, const gps_fix &fix )
         outs.print( fix.speed(), 3 ); // knots
       outs << ',';
     #endif
+    #ifdef GPS_FIX_VELNED
+      if (fix.valid.velned)
+        outs.print( fix.velocity_north ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_east  ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_down  ); // cm/s
+      outs << ',';
+    #endif
     #ifdef GPS_FIX_ALTITUDE
       if (fix.valid.altitude)
         outs.print( fix.altitude(), 2 );
@@ -274,6 +306,17 @@ Print & operator <<( Print &outs, const gps_fix &fix )
     #ifdef GPS_FIX_SPEED
       if (fix.valid.speed)
         outs << fix.speed_mkn();
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_VELNED
+      if (fix.valid.velned)
+        outs.print( fix.velocity_north ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_east  ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_down  ); // cm/s
       outs << ',';
     #endif
     #ifdef GPS_FIX_ALTITUDE

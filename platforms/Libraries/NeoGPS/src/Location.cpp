@@ -1,3 +1,20 @@
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "Location.h"
 
 using namespace NeoGPS;
@@ -27,13 +44,22 @@ int32_t safeDLon( int32_t p2, int32_t p1 )
 float Location_t::DistanceRadians
   ( const Location_t & p1, const Location_t & p2 )
 {
-  // Haversine calculation from http://www.movable-type.co.uk/scripts/latlong.html
+  int32_t dLonL   = safeDLon( p2.lon(), p1.lon() );
+  int32_t dLatL   = p2.lat() - p1.lat();
 
-        float dLat      = (p2.lat() - p1.lat()) * RAD_PER_DEG * LOC_SCALE;
-        float haverDLat = sin(dLat/2.0);
+  if ((abs(dLatL)+abs(dLonL)) < 1000) {
+    //  VERY close together.  Just use equirect approximation with precise integers.
+    //    This is not needed for accuracy (that I can measure), but it is
+    //    a quicker calculation.
+    return EquirectDistanceRadians( p1, p2 );
+  }
+
+  // Haversine calculation from http://www.movable-type.co.uk/scripts/latlong.html
+  float dLat      = dLatL * RAD_PER_DEG * LOC_SCALE;
+  float haverDLat = sin(dLat/2.0);
   haverDLat *= haverDLat; // squared
   
-  float dLon      = safeDLon( p2.lon(), p1.lon() ) * RAD_PER_DEG * LOC_SCALE;
+  float dLon      = dLonL * RAD_PER_DEG * LOC_SCALE;
   float haverDLon = sin(dLon/2.0);
   haverDLon *= haverDLon; // squared
   

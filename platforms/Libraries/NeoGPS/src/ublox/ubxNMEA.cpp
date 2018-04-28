@@ -1,3 +1,20 @@
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "ublox/ubxNMEA.h"
 
 // Disable the entire file if derived types are not allowed.
@@ -17,7 +34,8 @@ bool ubloxNMEA::parseField(char chr)
         case PUBX_04: return parsePUBX_04( chr );
       #endif
 
-      default: break;
+      default: 
+        break;
     }
 
   } else
@@ -64,6 +82,7 @@ bool ubloxNMEA::parsePUBX_00( char chr )
       case  8: return parseFix( chr );
       case 11: return parseSpeed( chr ); // kph!
       case 12: return parseHeading( chr );
+      case 13: return parseVelocityDown( chr );
       case 15: return parseHDOP( chr );
       case 16: return parseVDOP( chr );
       case 18: return parseSatellites( chr );
@@ -125,5 +144,31 @@ bool ubloxNMEA::parseFix( char chr )
   
   return true;
 }
+
+//---------------------------------------------
+
+bool ubloxNMEA::parseVelocityDown( char chr )
+{
+  #ifdef GPS_FIX_VELNED
+    if (chrCount == 0)
+      NMEAGPS_INVALIDATE( velned );
+
+    gps_fix::whole_frac *temp = (gps_fix::whole_frac *) &m_fix.velocity_down; // an alias for parsing
+
+    if (parseFloat( *temp, chr, 3 )) { // 0.001 m/s
+
+      if (chr == ',') {
+        // convert the temporary whole_frac values in place
+        m_fix.valid.velned = (chrCount > 0);
+        if (m_fix.valid.velned) {
+          m_fix.velocity_down = (temp->int32_000() + 5) / 10L; // mm/s to cm/s
+        }
+      }
+    }
+  #endif
+  
+  return true;
+
+} // parseVelocityDown
 
 #endif
