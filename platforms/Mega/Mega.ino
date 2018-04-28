@@ -60,7 +60,6 @@ int sendDataState = LOW;
 double compass;
 
 int oldSignature;  //  <-- what is this used for?  Never set, so always 0
-int blockCount;
 long maxSize;
 long newSize;
 float zheading;
@@ -217,37 +216,34 @@ void loop()
 
 void pixyModule()
 {
-  static int i = 0;
-  int j;
-  uint16_t blocks;
-  char buf[32];
-  int32_t panError = 500;
-  int32_t tiltError = 500;
-  int trackedBlock = 0;
-  panError = 500;
-  tiltError = 500;
+  static       uint8_t frameCount         = 0;
+  static const uint8_t PRINT_FRAME_PERIOD = 50;
 
-  blocks = pixy.getBlocks();
+  static uint16_t blockCount = 0;
+         uint16_t blocks     = pixy.getBlocks();
 
   if (blocks)
   {
     digitalWrite(PIXY_PROCESSING,HIGH);
-    panError  = X_CENTER - pixy.blocks[0].x;
+    int32_t panError  = X_CENTER - pixy.blocks[0].x;
     panLoop.update(panError);
 
-    tiltError = pixy.blocks[0].y - Y_CENTER;
+    int32_t tiltError = pixy.blocks[0].y - Y_CENTER;
     tiltLoop.update(tiltError);
 
     blockCount = blocks;
-    i++;
 
-    // do this (print) every 50 frames because printing every
+    // do this (print) every so often frames because printing every
     // frame would bog down the Arduino
-    if (i%50==0)
+    frameCount++;
+    if (frameCount >= PRINT_FRAME_PERIOD)
     {
-      //sprintf(buf, "Detected %d:\n", blocks);
-      DEBUG_PORT.println(buf); // Empties serial buffer.
-      for (j=0; j<blocks; j++)
+      frameCount = 0;
+      //DEBUG_PORT.print( F("Detected ") );
+      //DEBUG_PORT.print( blocks );
+      //DEBUG_PORT.println( ':' );
+
+      for (uint16_t j=0; j<blocks; j++)
       {
         long size = pixy.blocks[j].height * pixy.blocks[j].width;
         DEBUG_PORT.print( F("No. of blocks: ") );DEBUG_PORT.println(blocks);
@@ -256,29 +252,29 @@ void pixyModule()
         DEBUG_PORT.print( F("Max. size:     ") );DEBUG_PORT.println(maxSize);
         DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
         DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-        //sprintf(buf, "  block %d: ", j);
-        //DEBUG_PORT.print(buf);
+
         pixy.blocks[j].print();
         DEBUG_PORT.println();
       }
     }
-  // Overide compass module with object recognition:
-    if(panError > 300)
+
+    // Overide compass module with object recognition:
+    if (panError > 300)
     {
-    DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
-    DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-    //compassModule();
+      DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
+      DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
+      //compassModule();
     }
 
     compass = bearing + panError*0.2;
 
-  }// if (blocks) end
-  else
-  {
+  } else {
+    // No blocks
     digitalWrite(PIXY_PROCESSING,LOW);
   }
   //compassModule();
 
+  int trackedBlock = 0;
   maxSize = 0;
   for (int k = 0; k < blockCount; k++)
   {
