@@ -25,15 +25,23 @@ static const bool usePixy    = true;
 static const bool useCompass = true;
 static const bool useI2C     = true;
 
+
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <SPI.h>
+volatile bool   fonaMsgAvailable = false;
+volatile bool   fonaMsgLost      = false;
+         size_t fonaMsgLen       = 0;
+         char   fonaMsg[33];
+
+
 
 #include <Pixy.h>
 Pixy pixy;
 #define X_CENTER        ((PIXY_MAX_X-PIXY_MIN_X)/2)
 #define Y_CENTER        ((PIXY_MAX_Y-PIXY_MIN_Y)/2)
 
+
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
 Adafruit_LSM303_Mag_Unified mag( 12345 );
 
@@ -46,8 +54,8 @@ const float MM_PER_M  = 1000.0;
 const float M_PER_KM  = 1000.0;
 const float MM_PER_KM = MM_PER_M * M_PER_KM;
 
-String initiator;
-String dataString;
+
+#include <NeoPrintToRAM.h>
 char url[120];
 
 long zz;
@@ -55,13 +63,6 @@ long yy;
 float bearing;
 int zbearing;
 long zdistance;
-String latString;
-String lonString;
-String lat;
-String lon;
-String a;
-long latitude;
-long longitude;
 
 int sendDataState = LOW;
 
@@ -157,10 +158,11 @@ void setup()
 
 void loop()
 {
-  heartbeat ();
-  checkBeep ();
-  checkGPS  ();
-  pixyModule();
+  heartbeat      ();
+  checkBeep      ();
+  checkGPS       ();
+  pixyModule     ();
+  checkForFonaMsg();
 
 } // loop
 
@@ -210,11 +212,11 @@ void checkGPS()
       //DEBUG_PORT.print( F("Current Ublox latitude:  ") );
       //DEBUG_PORT.println(zz);
       //DEBUG_PORT.print( F("Latitude from Fona:      ") );
-      //DEBUG_PORT.println(latitude);
+      //DEBUG_PORT.println( base.lat() );
       //DEBUG_PORT.print( F("Current Ublox longitude: ") );
       //DEBUG_PORT.println(yy);
       //DEBUG_PORT.print( F("Longitude from Fona:     ") );
-      //DEBUG_PORT.println(longitude);
+      //DEBUG_PORT.println( base.lon() );
       //DEBUG_PORT.println();
 
       // This switches data set that is transmitted to TC275 via I2C.
@@ -331,6 +333,138 @@ void pixyModule()
 
 ////////////////////////////////////////////////////////////////////////////
 
+void checkForFonaMsg()
+{
+  if (fonaMsgAvailable) {
+    parseFonaMsg();
+
+    // now that the parsing is finished, mark the message as "read"
+    fonaMsgAvailable = false; 
+  }
+
+  // see if we lost a message sometime
+  if (fonaMsgLost) {
+    fonaMsgLost = false;
+    DEBUG_PORT.println( F("FONA message lost!") );
+  }
+
+} // checkForFonaMsg
+
+
+void parseFonaMsg()
+{
+  char   *ptr       = &fonaMsg[0]; // point to the beginning
+  size_t  remaining = fonaMsgLen;
+
+  static const char     LAT_LABEL[] PROGMEM = "LAT";
+  static const size_t   LAT_LABEL_LEN       = sizeof(LAT_LABEL)-1;
+  static const char     LON_LABEL[] PROGMEM = "LONG";
+  static const size_t   LON_LABEL_LEN       = sizeof(LON_LABEL)-1;
+               uint32_t latValue, lonValue;
+
+  if (findText( LAT_LABEL, LAT_LABEL_LEN, ptr, remaining )) {
+
+    if (parseValue( ptr, remaining, latValue )) {
+
+      if (findText( LON_LABEL, LON_LABEL_LEN, ptr, remaining )) {
+
+        if (parseValue( ptr, remaining, lonValue )) {
+
+          //  Look for a NUL character at the end
+
+          if (*ptr == '\0') {
+            // Everything was there, it's a good message
+
+            // Set the new base location
+            base.lat( latValue );
+            base.lon( -lonValue ); // <-- until sender fixed!!
+
+            DEBUG_PORT.print  ( F("Location from Fona:  ") );
+            DEBUG_PORT.print  ( base.lat() );
+            DEBUG_PORT.print  ( ',' );
+            DEBUG_PORT.println( base.lon() );
+
+          } else {
+            DEBUG_PORT.print( remaining );
+            DEBUG_PORT.println( F(" extra characters after lonValue") );
+          }
+
+        } else {
+          DEBUG_PORT.println( F("Invalid longitude") );
+        }
+      }
+
+    } else {
+      DEBUG_PORT.println( F("Invalid latitude") );
+    }
+  }
+
+} // parseFonaMsg
+
+
+bool findText
+  ( const char *   text_P, const size_t   len,
+          char * & ptr   ,       size_t & remaining )
+{
+  bool found = false;
+  
+  if (remaining >= len) {
+
+    static const int MATCHED = 0;
+  
+    if (memcmp_P( ptr, text_P, len ) == MATCHED) {
+      found = true;
+      
+      ptr       += len; // Advance pointer past the label
+      remaining -= len;
+
+    } else {
+      DEBUG_PORT.print  ( (const __FlashStringHelper *) text_P );
+      DEBUG_PORT.println( F(" label not found") );
+    }
+
+  } else {
+    DEBUG_PORT.print  ( F("Length ") );
+    DEBUG_PORT.print  ( remaining );
+    DEBUG_PORT.print  ( F(" too short for label ") );
+    DEBUG_PORT.println( (const __FlashStringHelper *) text_P );
+  }
+  
+  return found;
+
+} // findText
+
+
+bool parseValue( char * & ptr, size_t & remaining, uint32_t & value )
+{
+  bool ok = false;
+
+  if (remaining > 0) {
+
+    bool negative = (*ptr == '-');
+    if (negative) {
+      ptr++; // advance past minus sign
+      remaining--;
+    }
+
+    // Interpret digit characters
+    value = 0;
+    while (remaining and isDigit(*ptr)) {
+      value = value * 10 + (*ptr++ - '0'); // advances pointer, too
+      remaining--;
+      ok = true; // received at least one digit
+    }
+
+    if (negative)
+      value = -value;
+  }
+
+  return ok;
+
+} // parseValue
+
+////////////////////////////////////////////////////////////////////////////
+
 uint32_t lastHeartbeat;
 
 void heartbeat()
@@ -348,12 +482,12 @@ void heartbeat()
 
 void requestEvent()
 {
+  digitalWrite(I2C_REQUEST,HIGH);
   //DEBUG_PORT.println( F("Request event start  ") );
   Wire.write(url);     // as expected by master
-  digitalWrite(I2C_REQUEST,HIGH);
-  delay(100);
-  digitalWrite(I2C_REQUEST,LOW);
+  //delay(100);
   //DEBUG_PORT.println( F("Request event end  ") );
+  digitalWrite(I2C_REQUEST,LOW);
 
 } // requestEvent
 
@@ -365,71 +499,29 @@ void requestEvent()
 void receiveEvent(int howMany)
 {
   //digitalWrite(I2C_RECEIVE,HIGH);
-    a="";
-    lat="";
-    lon="";
-    latString="";
-    lonString="";
-  delay(100);
-  //DEBUG_PORT.println( F("Recieve event start  ") );
-  //DEBUG_PORT.println( F("Here is data from TC275: ") );
-  while (Wire.available())
-  {
-    char c = Wire.read(); // receive byte as a character
-   // DEBUG_PORT.print(c); //DEBUG_PORT.print( 'Q' );          // print the character
-      if (isAlpha(c))         // analyse c for letters
-      {
-      //DEBUG_PORT.print( F("LETTER") );
-      a=a+c;                // string = string + character
-      if (a=="LAT")
-      {
-       lon="";
-       lat=a;
-       //DEBUG_PORT.print( F(" Trigger word LAT detected!: ") );//DEBUG_PORT.println(b);
-       a="";
-      }
-      if (a=="LONG")
-      {
-       lat="";
-       lon=a;
-       //DEBUG_PORT.print( F(" Trigger word LONG detected!: ") );//DEBUG_PORT.println(d);
-       a="";
-      }
+
+  if (not fonaMsgAvailable) {
+
+    // Get the whole message
+    fonaMsgLen = 0;
+    while (Wire.available()) {
+      char c = Wire.read();
+      if (fonaMsgLen < sizeof(fonaMsg)-1)
+        fonaMsg[ fonaMsgLen++ ] = c;
     }
-      if (lat=="LAT")
-      {
-        if (isDigit(c))         // analyse c for numerical digit
-        {
-        latString=latString+c;                // string = string + character
-        }
-      }
-      if (lon=="LONG")
-      {
-        if (isDigit(c))         // analyse c for numerical digit
-        {
-        lonString=lonString+c;                // string = string + character
-        }
-      }
-  }    // While Loop
+    fonaMsg[ fonaMsgLen ] = '\0'; // NUL-terminate;
 
-  long result = latString.toInt();
-  if(result!=0) { latitude = result; }
+    fonaMsgAvailable = true;
 
-  result = lonString.toInt();
-  if(result!=0) { longitude = -result; } // <--  Why negative?  Sent wrong?
+  } else {
+    // fonaMsgAvailable is still true, loop must not have parsed it yet.
+    //   This means that this Fona message must be ignored.
 
-  if ((latitude != 0) and (longitude != 0)) {
-    // Received a new base location  
-    base.lat( latitude );
-    base.lon( longitude );
+    while (Wire.available())
+      Wire.read();
+    fonaMsgLost = true;
   }
 
-  //DEBUG_PORT.print( F("latString: ") );DEBUG_PORT.println(latString);
-  //DEBUG_PORT.print( F("lonString: ") );DEBUG_PORT.println(lonString);
-  //DEBUG_PORT.print( F("latitude integer from Fona:  ") );DEBUG_PORT.println(latitude);
-  //DEBUG_PORT.print( F("longitude integer from Fona: ") );DEBUG_PORT.println(longitude);
-  //DEBUG_PORT.println();
-  //DEBUG_PORT.println( F("Recieve event end  ") );
   //digitalWrite(I2C_RECEIVE,LOW);
 
 } // receiveEvent
@@ -440,18 +532,22 @@ void receiveEvent(int howMany)
 
 void characterCompileA()
 {
-// This is where the data is compiled into a character ....
-  dataString =  initiator  + "BEAR" + zbearing + "DIST" + zdistance + "COMP" + compass;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
-  int n = dataString.length();
-  //DEBUG_PORT.print( F("Data string to send:     ") ); DEBUG_PORT.println(dataString);
-  //DEBUG_PORT.print( F("Size of string:  ") ); DEBUG_PORT.println(n);
-  // Builds the url character:
-      for (int aa=0;aa<=n;aa++)
-      {
-          url[aa] = dataString[aa];
-      }
-   //DEBUG_PORT.print( F("Character data to send:  ") ); DEBUG_PORT.println(url);
-  // DEBUG_PORT.println();
+  Neo::PrintToRAM msg( url, sizeof(url) );
+
+  // Prevent requestEvent from getting the first half of the old
+  //   response and the second half of the new response.
+  noInterrupts();
+    msg.print( F("BEAR") );
+    msg.print( zbearing );
+    msg.print( F("DIST") );
+    msg.print( zdistance );
+    msg.print( F("COMP") );
+    msg.print( compass );
+    msg.terminate();
+  interrupts();
+
+  //DEBUG_PORT.print( F("msg A to send:  ") );
+  //DEBUG_PORT.println( url );
 
 } // characterCompileA
 
@@ -461,18 +557,20 @@ void characterCompileA()
 
 void characterCompileB()
 {
-// This is where the data is compiled into a character ....
-  dataString =  initiator  + "LOON" + yy + "LAAT" + zz;  // Limited to 32 characters for some reason !!! ..... + ",LON" + yy .... Removed.
-  int n = dataString.length();
-  // DEBUG_PORT.print( F("Data string to send:     ") );// DEBUG_PORT.println(dataString);
-   //DEBUG_PORT.print( F("Size of string:  ") );// DEBUG_PORT.println(n);
-  // Builds the url character:
-      for (int aa=0;aa<=n;aa++)
-      {
-          url[aa] = dataString[aa];
-      }
-   //DEBUG_PORT.print( F("Character data to send to TC275:  ") ); DEBUG_PORT.println(url);
-   //DEBUG_PORT.println();
+  Neo::PrintToRAM msg( url, sizeof(url) );
+
+  // Prevent requestEvent from getting the first half of the old
+  //   response and the second half of the new response.
+  noInterrupts();
+    msg.print( F("LOON") );
+    msg.print( yy );
+    msg.print( F("LAAT") );
+    msg.print( zz );
+    msg.terminate();
+  interrupts();
+
+  //DEBUG_PORT.print( F("msg B to send:  ") );
+  //DEBUG_PORT.println( url );
 
 } // characterCompileB
 
