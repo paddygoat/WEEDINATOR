@@ -848,12 +848,11 @@ void loop2()
         //SerialASC.println("");
         //SerialASC.print("Integer longitude Fona: ");SerialASC.println(lonFona);
       }   
-      //SerialASC.print(c);                          // print the character
-      fonaData[aa] =q;                          // set each character to "".
-       // Builds the fonaData character:
-      fonaData[aa] = fonaData[aa] + c;          //fonaData character is then transmitted to Ublox for analysis.
+      //SerialASC.print(c);      // print the character
+      fonaData[aa] = c;          //fonaData character is then transmitted to Ublox for analysis.
       aa++;
     }
+    fonaData[aa] = '\0'; // NUL-terminate C string of Fona characters
     previousMillis4Core3=currentMillisCore3; 
   } // millisCalc4 ends                           
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
