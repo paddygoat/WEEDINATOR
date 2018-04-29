@@ -32,6 +32,8 @@ int previousPhpPage =0;
 int ledState;
 int ledPin=13;
 char c;
+bool connectionState = false;
+bool dataRecievedState = false;
 
 //Connect Rx on Fona to Tx1 on mega or due:
 //HardwareSerial *fonaSerial = &Serial1;
@@ -86,8 +88,13 @@ void setup()
         Serial.println("If the line above says OK, then GPRS has just been turned off");
 //delay (1000);
     //networkStatus();   // Check the network is available. Home is good.
-    turnOnGPRS();
-    turnOnGPRS();
+    while(connectionState == false)
+    {
+      turnOnGPRS(); 
+      Serial.print("connectionState:   ");Serial.println(connectionState);
+      delay(1000);     
+    }
+
     delay (10000);  // Allow time for TC275 to transmit to this NANO before going to loop.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
    Serial.println("Let's now do some work with the database  ...........");
@@ -95,11 +102,17 @@ void setup()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() // Do not use millis commands - not enough memory! Need at least 77% dynamic memory.
 {
+  Serial.print("connectionState:     ");Serial.println(connectionState);
+  Serial.print("dataRecievedState:   ");Serial.println(dataRecievedState);
   cString = c;
   phpPage = (cString).toInt();
   if(phpPage!=previousPhpPage)   // New waypoint required by TC275
   {
-    recieveData();
+    dataRecievedState = false;
+    while(dataRecievedState == false)
+    {
+      recieveData();
+    }
     delay(100);
     previousPhpPage = phpPage;
   }
@@ -209,7 +222,7 @@ void recieveData()
   if (!fona.HTTP_GET_start(url, &statuscode, (uint16_t *)&length)) 
   {
      Serial.println("Failed!");
-     //break;
+     dataRecievedState = false;
   }
   while (length > 0) 
   {
@@ -230,6 +243,7 @@ void recieveData()
    }
    Serial.println(F("\n****"));
    fona.HTTP_GET_end();
+   dataRecievedState = true;
    tone(6,750,1000);        //pin,pitch,duration
    delay(1000);
    noTone(6);
@@ -244,8 +258,10 @@ void turnOnGPRS()
      //   Serial.println("GPRS is on if the line above shows 'OK'");
      //   Serial.println("Wait for 10 seconds to make sure GPRS is on ...........");        
      //   delay (10000);
-        if (fona.enableGPRS(true))   
-        digitalWrite(11, HIGH);                  // Orange LED
-
+        if (fona.enableGPRS(true))
+        { 
+          digitalWrite(11, HIGH);                  // Orange LED
+          connectionState = true;
+        }
     //    Serial.println(("No - Failed to turn on"));
 }
