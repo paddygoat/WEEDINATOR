@@ -133,23 +133,32 @@ void parseFonaMsg()
 
         if (parseValue( ptr, remaining, lonValue )) {
 
-          //  Look for a NUL character at the end
+          // Set the new base location
+          base.lat( latValue );
+          base.lon( -lonValue ); // <-- until sender fixed!!
 
-          if (*ptr == '\0') {
-            // Everything was there, it's a good message
+          DEBUG_PORT.print  ( F("Location from Fona:  ") );
+          DEBUG_PORT.print  ( base.lat() );
+          DEBUG_PORT.print  ( ',' );
+          DEBUG_PORT.println( base.lon() );
 
-            // Set the new base location
-            base.lat( latValue );
-            base.lon( lonValue );
-
-            DEBUG_PORT.print  ( F("Location from Fona:  ") );
-            DEBUG_PORT.print  ( base.lat() );
-            DEBUG_PORT.print  ( ',' );
-            DEBUG_PORT.println( base.lon() );
-
-          } else {
+          //  Make sure we used all the characters
+          if (remaining > 0) {
             DEBUG_PORT.print( remaining );
-            DEBUG_PORT.println( F(" extra characters after lonValue") );
+            DEBUG_PORT.print( F(" extra characters after lonValue: ") );
+
+            while (remaining-- > 0) {
+              char c = *ptr++;
+              char nybble = c >> 4;
+              char hexDigit = (nybble < 10) ? (nybble + '0') : (nybble - 10 + 'A');
+              DEBUG_PORT.print( hexDigit );
+
+              nybble = c & 0x0F;
+              hexDigit = (nybble < 10) ? (nybble + '0') : (nybble - 10 + 'A');
+              DEBUG_PORT.print( hexDigit );
+              DEBUG_PORT.print( ' ' );
+            }
+            DEBUG_PORT.println();
           }
 
         } else {
@@ -239,7 +248,7 @@ bool lineReady()
     if (c != endMarker) {
 
       // Only save the printable characters, if there's room
-      if ((' ' <= c) and (count < MAX_CHARS-1)) {
+      if (/*(' ' <= c) and */ (count < MAX_CHARS-1)) {
         line[ count++ ] = c;
       }
 
