@@ -528,7 +528,7 @@ void receiveEvent(int howMany)
     while (Wire.available()) {
       char c = Wire.read();
       // If it's a printable char (not CR/LF) and there's room, save it.
-      if ((c >= ' ') and (fonaMsgLen < sizeof(fonaMsg)-1))
+      if (isprint(c) and (fonaMsgLen < sizeof(fonaMsg)-1))
         fonaMsg[ fonaMsgLen++ ] = c;
     }
     fonaMsg[ fonaMsgLen ] = '\0'; // NUL-terminate;
