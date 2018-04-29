@@ -52,8 +52,8 @@ void loop()
   if (lineReady()) {
     size_t n = strlen( line );
 
-    DEBUG_PORT.print  ( F("Parsing line '") );
-    DEBUG_PORT.print  ( line );
+    DEBUG_PORT.print  ( F("Data = '") );
+    showData( line, n );
     DEBUG_PORT.print  ( '\'' );
     DEBUG_PORT.print  ( F(", len = ") );
     DEBUG_PORT.println( n );
@@ -76,7 +76,8 @@ void receiveEvent(int howMany)
     fonaMsgLen = 0;
     while (Wire.available()) {
       char c = Wire.read();
-      if (fonaMsgLen < sizeof(fonaMsg)-1)
+      // If it's a printable char (not CR/LF) and there's room, save it.
+      if (isprint(c) and (fonaMsgLen < sizeof(fonaMsg)-1))
         fonaMsg[ fonaMsgLen++ ] = c;
     }
     fonaMsg[ fonaMsgLen ] = '\0'; // NUL-terminate;
@@ -135,7 +136,7 @@ void parseFonaMsg()
 
           // Set the new base location
           base.lat( latValue );
-          base.lon( -lonValue ); // <-- until sender fixed!!
+          base.lon( lonValue );
 
           DEBUG_PORT.print  ( F("Location from Fona:  ") );
           DEBUG_PORT.print  ( base.lat() );
@@ -145,20 +146,9 @@ void parseFonaMsg()
           //  Make sure we used all the characters
           if (remaining > 0) {
             DEBUG_PORT.print( remaining );
-            DEBUG_PORT.print( F(" extra characters after lonValue: ") );
-
-            while (remaining-- > 0) {
-              char c = *ptr++;
-              char nybble = c >> 4;
-              char hexDigit = (nybble < 10) ? (nybble + '0') : (nybble - 10 + 'A');
-              DEBUG_PORT.print( hexDigit );
-
-              nybble = c & 0x0F;
-              hexDigit = (nybble < 10) ? (nybble + '0') : (nybble - 10 + 'A');
-              DEBUG_PORT.print( hexDigit );
-              DEBUG_PORT.print( ' ' );
-            }
-            DEBUG_PORT.println();
+            DEBUG_PORT.print( F(" extra characters after lonValue: '") );
+            showData( ptr, remaining );
+            DEBUG_PORT.println('\'');
           }
 
         } else {
@@ -234,6 +224,29 @@ bool parseValue( char * & ptr, size_t & remaining, uint32_t & value )
   return ok;
 
 } // parseValue
+
+
+void showData( char *data, size_t n )
+{
+  for (size_t i=0; i < n; i++) {
+
+    if (isprint(data[i]))
+      DEBUG_PORT.print( data[i] );
+    else if (data[i] == 0x0D)
+      DEBUG_PORT.print( F("<CR>") );
+    else if (data[i] == 0x0A)
+      DEBUG_PORT.print( F("<LF>") );
+    else {
+      // Some other value?  Just show its HEX value.
+      DEBUG_PORT.print( F("<0x") );
+      if (data[i] < 0x10)
+        DEBUG_PORT.print( '0' );
+      DEBUG_PORT.print( data[i], HEX );
+      DEBUG_PORT.print( '>' );
+    }
+  }
+
+} // showData
 
 
 bool lineReady()
