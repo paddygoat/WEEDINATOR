@@ -1,267 +1,319 @@
+#define DEBUG_PORT Serial
+
 #include <Wire.h>
-#include "Adafruit_FONA.h"
+
+#include <Adafruit_FONA.h>
+
 #include <SoftwareSerial.h>
-#define FONA_RX 3
-#define FONA_TX 4
-#define FONA_RST 5
-SoftwareSerial fonaSS = SoftwareSerial(FONA_TX, FONA_RX);
-SoftwareSerial *fonaSerial = &fonaSS;
+const int FONA_RX = 3;
+const int FONA_TX = 4;
+//SoftwareSerial fonaPort( FONA_TX, FONA_RX );
+//const uint32_t FONA_BAUD = 4800;
+#define fonaPort Serial
+const uint32_t FONA_BAUD = 115200;
+
+const int FONA_RST     = 5;
+const int SPEAKER      = 6;
+const int ORANGE_LED   = 11;
+const int BLUE_LED     = 12;
+const int LED_PIN      = 13;
+const int I2C_ACTIVITY = LED_PIN;
+
+const int      HEARTBEAT_LED    = ORANGE_LED;
+const uint32_t HEARTBEAT_PERIOD =  200; // ms
+const uint16_t BEEP_FREQUENCY   =  750; // Hz
+
 // Connect Nano A5 to Maga SCL
 // Connect Nano A4 to Mega SDA
 
-// this is a large buffer for replies
-char replybuffer[255];
-String initiator;
-String dataString = "#################################"; //Assign 33 bytes.
-char url[60] = "############################################################";
-const char webAddress[55] = "http://www.goatindustries.co.uk/weedinator/select";
-const char dotPhp[5] = ".php";
-int stringLength =0;
-int w=10;
-int n=0;
-int p=0;
-int i=0;
-char rabbits[40];
-String a="";
-int k;
-int z=0;
-String recieve = "#################################"; //Assign 33 bytes.
-String cString = "1";
-int phpPage =0;
-int previousPhpPage =0;
-int ledState;
-int ledPin=13;
-char c;
-bool connectionState = false;
-bool dataRecievedState = false;
+// Change these settings! (Network APN, username ,password)
+const char networkAPN[] PROGMEM = "pp.vodafone.co.uk";
+const char username  [] PROGMEM = "wap";
+const char password  [] PROGMEM = "wap";
+const char webAddress[] PROGMEM =
+  "http://www.goatindustries.co.uk/weedinator/select";
+const char dotPhp    [] PROGMEM = ".php";
 
-//Connect Rx on Fona to Tx1 on mega or due:
-//HardwareSerial *fonaSerial = &Serial1;
+// Handy macro for passing PROGMEM char arrays to anything 
+//   that expects a FLASH string, like Serial.print or 
+//   fona.setGPRSNetworkSettings
+#define CF(x) ((const __FlashStringHelper *)x)
 
-Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
-uint8_t readline(char *buff, uint8_t maxbuff, uint16_t timeout = 0);
-uint8_t type;
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setup() 
-{ 
-  tone(6,750,500);
-  delay(500);
-  noTone(6);
+#include <NeoPrintToRAM.h>
+
+
+char rabbits[40] = "";
+
+
+volatile int phpPage         = 0;
+         int previousPhpPage = 0;
+
+
+Adafruit_FONA fona( FONA_RST );
+
+
+///////////////////////////////////////////////////////////////////////
+
+void setup()
+{
+  DEBUG_PORT.begin(115200);
+  DEBUG_PORT.println( F("FONA basic test\r\n"
+                    "Initialising....(May take 3 seconds)") );
+
+  beep( 500 );
+
   Wire.begin(43);                // join i2c bus with address #43
-  Wire.onReceive(receiveEvent); // register event
-  Wire.onRequest(requestEvent); // register event
-  Serial.begin(115200);
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
-  pinMode(12, OUTPUT);         // Blue LED
-  digitalWrite(12, LOW);
-  pinMode(11, OUTPUT);         // Orange LED
-  digitalWrite(11, LOW);
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  while (!Serial);       // Use this for initiating program by opening of serial monitor. Delete in normal operation.
-  Serial.println(F("FONA basic test"));
-  Serial.println(F("Initialising....(May take 3 seconds)"));
+  Wire.onReceive( receiveEvent ); // register event
+  Wire.onRequest( requestEvent ); // register event
 
-  fonaSerial->begin(4800);
-  if (! fona.begin(*fonaSerial)) {
-    Serial.println(F("Couldn't find FONA"));
-//   while (1);
+  pinMode( BLUE_LED, OUTPUT );
+  digitalWrite( BLUE_LED, LOW );
+  pinMode( ORANGE_LED, OUTPUT );
+  digitalWrite( ORANGE_LED, LOW );
+  pinMode( I2C_ACTIVITY, OUTPUT );
+  digitalWrite( I2C_ACTIVITY, LOW );
+
+  fonaPort.begin( FONA_BAUD );
+  if (! fona.begin( fonaPort )) {
+    DEBUG_PORT.println( F("Couldn't find FONA") );
+    //while (1);
   }
-  type = fona.type();
-  Serial.println(F("FONA is OK"));
-  Serial.print(F("Found "));
+  DEBUG_PORT.println( F("FONA is OK\r\nFound ") );
+  uint8_t type = fona.type();
   switch (type) {
     case FONA800H:
-      Serial.println(F("FONA 800H")); break;
+      DEBUG_PORT.println( F("FONA 800H") ); break;
   }
-  //networkStatus();   // Check the network is available. Home is good.
-  
-        Serial.println("");
-        Serial.println("Checking that GPRS is turned off to start with .........");
-  fona.setGPRSNetworkSettings(F("pp.vodafone.co.uk"), F("wap"), F("wap"));   // Change these settings! (Network APN, username ,password)
-//delay (1000);
-        // Turn off GPRS:
-        if (!fona.enableGPRS(false))
-        Serial.println(F("No - Failed to turn off"));
-        Serial.println("If the line above says OK, then GPRS has just been turned off");
-//delay (1000);
-    //networkStatus();   // Check the network is available. Home is good.
-    while(connectionState == false)
-    {
-      turnOnGPRS(); 
-      Serial.print("connectionState:   ");Serial.println(connectionState);
-      delay(1000);     
-    }
 
-    delay (10000);  // Allow time for TC275 to transmit to this NANO before going to loop.
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-   Serial.println("Let's now do some work with the database  ...........");
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void loop() // Do not use millis commands - not enough memory! Need at least 77% dynamic memory.
+  //networkStatus();   // Check the network is available. Home is good.
+  DEBUG_PORT.println();
+
+  DEBUG_PORT.println( F("Checking that GPRS is turned off to start with .........") );
+
+  fona.setGPRSNetworkSettings( CF(networkAPN), CF(username), CF(password) );
+  //delay (1000);
+
+  // Turn off GPRS:
+  if (!fona.enableGPRS(false))
+    DEBUG_PORT.println( F("FAILED: GPRS not turned off") );
+  else
+    DEBUG_PORT.println( F("GPRS turned off") );
+
+  //delay (1000);
+  //networkStatus();   // Check the network is available. Home is good.
+
+  turnOnGPRS();
+  turnOnGPRS();
+
+  DEBUG_PORT.println( F("Let's now do some work with the database  ...........") );
+
+} // setup
+
+///////////////////////////////////////////////////////////////////////
+
+void loop()
 {
-  Serial.print("connectionState:     ");Serial.println(connectionState);
-  Serial.print("dataRecievedState:   ");Serial.println(dataRecievedState);
-  cString = c;
-  phpPage = (cString).toInt();
-  if(phpPage!=previousPhpPage)   // New waypoint required by TC275
-  {
-    dataRecievedState = false;
-    while(dataRecievedState == false)
-    {
-      recieveData();
+  heartbeat();
+  checkBeep();
+  checkPHP ();
+}
+
+///////////////////////////////////////////////////////////////////////
+
+      uint32_t lastPHP              = 0;
+const uint32_t MIN_PHP_CHECK_PERIOD = 1000;
+
+void checkPHP()
+{
+  // Don't try to get waypoints too quickly
+  if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
+
+    // Was a new waypoint requested?
+    if (previousPhpPage != phpPage) {
+
+      // Yes, get it now.
+      receiveData();
+      lastPHP         = millis();
+      previousPhpPage = phpPage;
     }
-    delay(100);
-    previousPhpPage = phpPage;
   }
-  digitalWrite(11, HIGH);
-  delay(100);
-  digitalWrite(11, LOW);
-  delay(100);
-}
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// End of main loop.
-void receiveEvent(int howMany) // Recieves data about which /select.php file to read next
+
+} // checkPHP
+
+///////////////////////////////////////////////////////////////////////
+
+void receiveEvent(int howMany)
 {
-  while (Wire.available())
-  {
-    c = Wire.read(); // receive byte as a character, eg 7
-    Serial.print("c:                ");Serial.print(c);Serial.println(" (recieved from TC275)");
+  while (Wire.available()) {
+    char c = Wire.read();
+    if (isdigit(c)) {
+      phpPage = c - '0'; // E.g., char '5' to integer value 5
+    }
   }
-}
-void requestEvent() 
-{ 
-  characterCompile();
-  Serial.println("Request event start  ");
-  //Wire.write(rabbits[1]);
-  Wire.write(rabbits[2]);
-  Wire.write(rabbits[3]); // as expected by master
-  Wire.write(rabbits[4]);
-  Wire.write(rabbits[5]);
-  Wire.write(rabbits[6]);
-  Wire.write(rabbits[7]);
-  Wire.write(rabbits[8]);
-  Wire.write(rabbits[9]);
-  Wire.write(rabbits[10]);
-  Wire.write(rabbits[11]);
-  Wire.write(rabbits[12]);  
-  Wire.write(rabbits[13]);
-  Wire.write(rabbits[14]);
-  Wire.write(rabbits[15]);
-  Wire.write(rabbits[16]);
-  Wire.write(rabbits[17]);
-  Wire.write(rabbits[18]);
-  Wire.write(rabbits[19]);
-  Wire.write(rabbits[20]);
-  Wire.write(rabbits[21]); 
-  Wire.write(rabbits[22]);
-  Wire.write(rabbits[23]); 
-  Wire.write(rabbits[24]);
-  Wire.write(rabbits[25]); 
-  Wire.write(rabbits[26]);
-  Wire.write(rabbits[27]);
-  Serial.println("Request event end  ");
-  //    for (int aa=2;aa<=n;aa++)   // For some reason this does not work.                                           
-  //    {
-  //        Wire.write(rabbits);
-  //    }
-  digitalWrite(13, HIGH);
-  delay(100);
-  digitalWrite(13, LOW);
-}
-void characterCompile()
+} // receiveEvent
+
+///////////////////////////////////////////////////////////////////////
+
+void requestEvent()
 {
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////        BME280Temperature
-// This is where the data is compiled into a character ....
-  Serial.print("Lat and Lon recieved from database (recieve):     ");Serial.println(recieve);  
-  //dataString =  initiator  + recieve;  // Limited to 32 characters for some reason !!!
-  int n =  31;                                                      // dataString.length();
-  //Serial.print("Data string to compile into char[] rabbits:     ");Serial.println(dataString);   
-  //Serial.print("Size of string:  ");Serial.println(n);
-  // Builds the rabbits character, which is lat and long coordinates from database.
-      for (int aa=0;aa<=n;aa++)                                              
-      {
-        rabbits[aa] = recieve[aa];  // char = string
-      }
-  Serial.print("Character data to be requested by TC275 (rabbits):  ");Serial.println(rabbits);
-  Serial.println("");
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-}
-void recieveData()
+  digitalWrite(I2C_ACTIVITY, HIGH);
+
+  Wire.write( rabbits, strlen( rabbits ) + 1 ); // includes NUL terminator
+
+  digitalWrite(I2C_ACTIVITY, LOW);
+
+} // requestEvent
+
+///////////////////////////////////////////////////////////////////////
+
+void receiveData()
 {
-////////////////////////////////////////////////////////////////////////////////////////
-  Serial.print("Select php url from TC275:        ");Serial.println(cString);
-  dataString = "";
-  dataString =  initiator + webAddress + cString + dotPhp;
-  //dataString =  "bollox" + cString + ".php";
-  Serial.print("url string compiled (dataString):   ");Serial.println(dataString);
-  // Builds the url character:
-  n = dataString.length()-1;
-  for (int aa=0;aa<=n;aa++)                                              
-  {
-    url[aa]="Z";
-  }
-  p = dataString.length()-1;
-  for (int bb=0;bb<=p;bb++)                                              
-  {
-    url[bb] = dataString[bb];     // Character = String
-  }
-  Serial.print("url character compiled (url):       ");Serial.println(url);
-//////////////////////////////////////////////////////////////////////////////////////// 
-  recieve="";
-  digitalWrite(12, HIGH);
-  delay(100);
-  digitalWrite(12, LOW);
-  delay(100);
-  // read website URL
+  DEBUG_PORT.print( F("Select php page from TC275:        ") );
+  DEBUG_PORT.println( phpPage );
+
+  // Builds the url character array:
+  char url[60];
+  Neo::PrintToRAM urlChars( url, sizeof(url) );
+  urlChars.print( CF(webAddress) );
+  urlChars.print( phpPage );
+  urlChars.print( CF(dotPhp) );
+  urlChars.terminate(); // add NUL terminator to this C string
+
+  //urlChars.print( F("bollox") );
+  //urlChars.print( phpPage );
+  //urlChars.print( F(".php") );
+  //urlChars.terminate();
+
+  DEBUG_PORT.print( F("url for GET request:       ") );
+  showData( url, strlen(url) );
+  DEBUG_PORT.println();
+
+  digitalWrite(BLUE_LED, HIGH);
+
+  // Issue GET request.  Reply will be a waypoint.
   uint16_t statuscode;
-  int16_t length;
-  //char url[80] = "http://www.goatindustries.co.uk/weedinator/select7.php";
-  if (!fona.HTTP_GET_start(url, &statuscode, (uint16_t *)&length)) 
-  {
-     Serial.println("Failed!");
-     dataRecievedState = false;
+  uint16_t length;
+
+  if (fona.HTTP_GET_start( url, &statuscode, &length )) {
+
+    char receive[40];
+    Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
+
+    if (length > 0) {
+      while (fona.available()) {
+        char c = fona.read();
+        if (isprint( c ))
+          receiveChars.write( c ); // add to array
+        showData( &c, 1 );
+      }
+    }
+    receiveChars.terminate();
+
+    DEBUG_PORT.print( F("Lat and Lon from database (receive):     ") );
+    showData( receive, strlen(receive) );
+    DEBUG_PORT.println();
+
+    // Builds the message to send with lat and long coordinates from database.
+    length = receiveChars.numWritten();
+    if (length > 0) {
+      // skip the first character?
+      memcpy( rabbits, &receive[1], length-1 ); // Include the NUL terminator
+    } else {
+      // Empty message
+      rabbits[0] = '\0';
+    }
+    
+    DEBUG_PORT.print( F("Character data to be requested by TC275 (rabbits):  ") );
+    showData( rabbits, strlen(rabbits)+1 );
+    DEBUG_PORT.println();
+
+  } else {
+     DEBUG_PORT.println( F("HTTP GET Failed!") );
   }
-  while (length > 0) 
-  {
-    while (fona.available()) 
-    {
-      char ccc = fona.read();
-      recieve=recieve+ccc;                      // string = string + character 
-      // Serial.write is too slow, we'll write directly to Serial register!
-      #if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
-        loop_until_bit_is_set(UCSR0A, UDRE0); /* Wait until data register empty. */
-        UDR0 = ccc; 
-      #else
-        Serial.write(ccc);
-      #endif
-        length--;
-         if (! length);
-     }
-   }
-   Serial.println(F("\n****"));
-   fona.HTTP_GET_end();
-   dataRecievedState = true;
-   tone(6,750,1000);        //pin,pitch,duration
-   delay(1000);
-   noTone(6);
+ 
+  DEBUG_PORT.println( F("\n****") );
+  fona.HTTP_GET_end();
+
+  digitalWrite(BLUE_LED, LOW);
+
+  beep(1000);        //pin,pitch,duration
 }
-//////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////
+
 void turnOnGPRS()
-{    
-        //delay (10000);
-        Serial.println("Now attempting to turn on GPRS .........");
-     //   if (!fona.enableGPRS(true))
-     //   Serial.println(F("No - Failed to turn on"));
-     //   Serial.println("GPRS is on if the line above shows 'OK'");
-     //   Serial.println("Wait for 10 seconds to make sure GPRS is on ...........");        
-     //   delay (10000);
-        if (fona.enableGPRS(true))
-        { 
-          digitalWrite(11, HIGH);                  // Orange LED
-          connectionState = true;
-        }
-    //    Serial.println(("No - Failed to turn on"));
+{
+  DEBUG_PORT.println( F("Now attempting to turn on GPRS .........") );
+
+  if (fona.enableGPRS(true)) {
+    digitalWrite(ORANGE_LED, HIGH);
+    //DEBUG_PORT.println( F("Wait for 10 seconds to make sure GPRS is on ..........." ));
+    //delay (10000);
+  } else {
+    //DEBUG_PORT.println(("No - Failed to turn on"));
+  }
+
+} // turnOnGPRS
+
+////////////////////////////////////////////////////////////////////////////
+
+uint32_t lastHeartbeat;
+
+void heartbeat()
+{
+  uint32_t currentMillis = millis();
+
+  if ((currentMillis - lastHeartbeat) >= HEARTBEAT_PERIOD)
+  {
+    lastHeartbeat = currentMillis;
+    digitalWrite( HEARTBEAT_LED, !digitalRead(HEARTBEAT_LED) ); // toggle
+  }
+} // heartbeat
+
+////////////////////////////////////////////////////////////////////////////
+
+uint32_t beepDuration;
+uint32_t beepStart;
+bool     beeping;
+
+void beep( uint32_t duration )
+{
+  beeping      = true;
+  beepStart    = millis();
+  beepDuration = duration;
+  tone( SPEAKER, BEEP_FREQUENCY, 0 );   // pin,pitch,duration (forever)
 }
+
+void checkBeep()
+{
+  if (beeping and ((millis() - beepStart) >= beepDuration)) {
+    noTone( SPEAKER );
+    beeping = false;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////
+
+void showData( char *data, size_t n )
+{
+  for (size_t i=0; i < n; i++) {
+
+    if (isprint(data[i]))
+      DEBUG_PORT.print( data[i] );
+    else if (data[i] == 0x00)
+      DEBUG_PORT.print( F("<NUL>") );
+    else if (data[i] == 0x0A)
+      DEBUG_PORT.print( F("<LF>") );
+    else if (data[i] == 0x0D)
+      DEBUG_PORT.print( F("<CR>") );
+    else {
+      // Some other value?  Just show its HEX value.
+      DEBUG_PORT.print( F("<0x") );
+      if (data[i] < 0x10)
+        DEBUG_PORT.print( '0' );
+      DEBUG_PORT.print( data[i], HEX );
+      DEBUG_PORT.print( '>' );
+    }
+  }
+
+} // showData

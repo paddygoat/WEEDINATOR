@@ -406,10 +406,12 @@ void showData( char *data, size_t n )
 
     if (isprint(data[i]))
       DEBUG_PORT.print( data[i] );
-    else if (data[i] == 0x0D)
-      DEBUG_PORT.print( F("<CR>") );
+    else if (data[i] == 0x00)
+      DEBUG_PORT.print( F("<NUL>") );
     else if (data[i] == 0x0A)
       DEBUG_PORT.print( F("<LF>") );
+    else if (data[i] == 0x0D)
+      DEBUG_PORT.print( F("<CR>") );
     else {
       // Some other value?  Just show its HEX value.
       DEBUG_PORT.print( F("<0x") );
