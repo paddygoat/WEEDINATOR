@@ -2090,3 +2090,12 @@ boolean Adafruit_FONA_3G::parseReply(FONAFlashStringPtr toreply,
 
   return true;
 }
+
+void Adafruit_FONA::delay( uint16_t ms )
+{
+  uint32_t startTime = millis();
+  do {
+    yield();
+  } while (millis() - startTime < ms);
+
+} // delay

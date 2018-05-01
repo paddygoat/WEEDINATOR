@@ -72,6 +72,8 @@ void setup()
   DEBUG_PORT.println( F("FONA basic test\r\n"
                         "Initialising....(May take 3 seconds)") );
 
+  beep( 500 );
+
   Wire.begin(43);                // join i2c bus with address #43
   Wire.onReceive( receiveEvent ); // register event
   Wire.onRequest( requestEvent ); // register event
@@ -131,18 +133,21 @@ void setup()
   turnOnGPRS();
   turnOnGPRS();  // <-- why twice?
 
-  beep( 500 );
-
   DEBUG_PORT.println( F("Let's now do some work with the database  ...........") );
 
 } // setup
 
 ///////////////////////////////////////////////////////////////////////
 
-void loop()
+void yield()
 {
   heartbeat();
   checkBeep();
+}
+
+void loop()
+{
+  yield();
   checkWaypoint();
 }
 
@@ -240,8 +245,10 @@ void getWaypoint()
 
         length--;
       }
+      yield();
     }
     receiveChars.terminate();
+    DEBUG_PORT.println();
 
     DEBUG_PORT.print( F("Lat and Lon from database (receive):     ") );
     showData( receive, strlen(receive) );
