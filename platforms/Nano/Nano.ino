@@ -54,8 +54,9 @@ const char dotPhp    [] PROGMEM = ".php";
 char rabbits[40] = "";
 
 
-volatile int phpPage         = 0;
-         int previousPhpPage = 0;
+volatile int newWaypoint = 0;
+         int waypoint    = 0;
+
 static void disableInterrupts() { cli(); }
 static void enableInterrupts()  { sei(); }
 
@@ -142,7 +143,7 @@ void loop()
 {
   heartbeat();
   checkBeep();
-  checkPHP ();
+  checkWaypoint();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -150,25 +151,25 @@ void loop()
       uint32_t lastPHP              = 0;
 const uint32_t MIN_PHP_CHECK_PERIOD = 1000;
 
-void checkPHP()
+void checkWaypoint()
 {
   // Don't try to get waypoints too quickly
   if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
 
     // Was a new waypoint requested?
     disableInterrupts();
-      int safePhpPage = phpPage;
+      int safeNewWaypoint = newWaypoint;
     enableInterrupts();
-    if (previousPhpPage != safePhpPage) {
+    if (waypoint != safeNewWaypoint) {
+      waypoint = safeNewWaypoint;
 
       // Yes, get it now.
-      receiveData();
-      lastPHP         = millis();
-      previousPhpPage = phpPage;
+      getWaypoint();
+      lastPHP = millis();
     }
   }
 
-} // checkPHP
+} // checkWaypoint
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -177,7 +178,7 @@ void receiveEvent(int howMany)
   while (Wire.available()) {
     char c = Wire.read();
     if (isdigit(c)) {
-      phpPage = c - '0'; // E.g., char '5' to integer value 5
+      newWaypoint = c - '0'; // E.g., char '5' to integer value 5
     }
   }
 } // receiveEvent
@@ -196,21 +197,21 @@ void requestEvent()
 
 ///////////////////////////////////////////////////////////////////////
 
-void receiveData()
+void getWaypoint()
 {
   DEBUG_PORT.print( F("Select php page from TC275:        ") );
-  DEBUG_PORT.println( phpPage );
+  DEBUG_PORT.println( waypoint );
 
   // Builds the url character array:
   char url[60];
   Neo::PrintToRAM urlChars( url, sizeof(url) );
   urlChars.print( CF(webAddress) );
-  urlChars.print( phpPage );
+  urlChars.print( waypoint );
   urlChars.print( CF(dotPhp) );
   urlChars.terminate(); // add NUL terminator to this C string
 
   //urlChars.print( F("bollox") );
-  //urlChars.print( phpPage );
+  //urlChars.print( waypoint );
   //urlChars.print( F(".php") );
   //urlChars.terminate();
 
@@ -271,8 +272,9 @@ void receiveData()
 
   digitalWrite(BLUE_LED, LOW);
 
-  beep(1000);        //pin,pitch,duration
-}
+  beep(1000);
+
+} // getWaypoint
 
 ///////////////////////////////////////////////////////////////////////
 
