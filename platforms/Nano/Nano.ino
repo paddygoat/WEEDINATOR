@@ -56,6 +56,8 @@ char rabbits[40] = "";
 
 volatile int phpPage         = 0;
          int previousPhpPage = 0;
+static void disableInterrupts() { cli(); }
+static void enableInterrupts()  { sei(); }
 
 
 Adafruit_FONA fona( FONA_RST );
@@ -154,7 +156,10 @@ void checkPHP()
   if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
 
     // Was a new waypoint requested?
-    if (previousPhpPage != phpPage) {
+    disableInterrupts();
+      int safePhpPage = phpPage;
+    enableInterrupts();
+    if (previousPhpPage != safePhpPage) {
 
       // Yes, get it now.
       receiveData();
@@ -244,8 +249,10 @@ void receiveData()
     // Builds the message to send with lat and long coordinates from database.
     length = receiveChars.numWritten();
     if (length > 0) {
-      // skip the first character?
-      memcpy( rabbits, &receive[1], length-1 ); // Include the NUL terminator
+      disableInterrupts();
+        // skip the first character?
+        memcpy( rabbits, &receive[1], length-1 ); // Include the NUL terminator
+      enableInterrupts();
     } else {
       // Empty message
       rabbits[0] = '\0';
