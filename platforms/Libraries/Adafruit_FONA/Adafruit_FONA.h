@@ -240,7 +240,6 @@ class Adafruit_FONA : public FONAStreamType {
   static void onIncomingCall();
 
   FONAStreamType *mySerial;
-  void delay( uint16_t ms ); // overrides the global delay!
 };
 
 class Adafruit_FONA_3G : public Adafruit_FONA {
