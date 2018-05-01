@@ -4,13 +4,22 @@
 
 #include <Adafruit_FONA.h>
 
-#include <SoftwareSerial.h>
-const int FONA_RX = 3;
-const int FONA_TX = 4;
-//SoftwareSerial fonaPort( FONA_TX, FONA_RX );
-//const uint32_t FONA_BAUD = 4800;
-#define fonaPort Serial
-const uint32_t FONA_BAUD = 115200;
+// For testing on a Mega, just use Serial (type the AT command responses)
+#if defined(ARDUINO_AVR_MEGA2560)
+  #define fonaPort Serial
+  const uint32_t FONA_BAUD = 115200;
+
+// For a real Nano, use SoftwareSerial to talk to a real Fona module
+#elif defined(ARDUINO_AVR_NANO)
+  #include <SoftwareSerial.h>
+  const int FONA_RX = 3;
+  const int FONA_TX = 4;
+  SoftwareSerial fonaPort( FONA_TX, FONA_RX );
+  const uint32_t FONA_BAUD = 4800;
+
+#else
+  #error Board not supported!
+#endif
 
 const int FONA_RST     = 5;
 const int SPEAKER      = 6;
@@ -35,7 +44,7 @@ const char webAddress[] PROGMEM =
 const char dotPhp    [] PROGMEM = ".php";
 
 // Handy macro for passing PROGMEM char arrays to anything 
-//   that expects a FLASH string, like Serial.print or 
+//   that expects a FLASH string, like DEBUG_PORT.print or 
 //   fona.setGPRSNetworkSettings
 #define CF(x) ((const __FlashStringHelper *)x)
 
@@ -58,9 +67,7 @@ void setup()
 {
   DEBUG_PORT.begin(115200);
   DEBUG_PORT.println( F("FONA basic test\r\n"
-                    "Initialising....(May take 3 seconds)") );
-
-  beep( 500 );
+                        "Initialising....(May take 3 seconds)") );
 
   Wire.begin(43);                // join i2c bus with address #43
   Wire.onReceive( receiveEvent ); // register event
@@ -78,12 +85,28 @@ void setup()
     DEBUG_PORT.println( F("Couldn't find FONA") );
     //while (1);
   }
-  DEBUG_PORT.println( F("FONA is OK\r\nFound ") );
+  DEBUG_PORT.println( F("FONA is OK") );
+
   uint8_t type = fona.type();
+  const __FlashStringHelper *typeString;
   switch (type) {
+    case FONA800L:
+      typeString = F("FONA 800L");          break;
     case FONA800H:
-      DEBUG_PORT.println( F("FONA 800H") ); break;
+      typeString = F("FONA 800H");          break;
+    case FONA808_V1:
+      typeString = F("FONA 808 (v1)");      break;
+    case FONA808_V2:
+      typeString = F("FONA 808 (v2)");      break;
+    case FONA3G_A:
+      typeString = F("FONA 3G (American)"); break;
+    case FONA3G_E:
+      typeString = F("FONA 3G (European)"); break;
+    default: 
+      typeString = F("???");                break;
   }
+  DEBUG_PORT.print  ( F("Found ") );
+  DEBUG_PORT.println( typeString );
 
   //networkStatus();   // Check the network is available. Home is good.
   DEBUG_PORT.println();
@@ -103,7 +126,9 @@ void setup()
   //networkStatus();   // Check the network is available. Home is good.
 
   turnOnGPRS();
-  turnOnGPRS();
+  turnOnGPRS();  // <-- why twice?
+
+  beep( 500 );
 
   DEBUG_PORT.println( F("Let's now do some work with the database  ...........") );
 
@@ -199,12 +224,15 @@ void receiveData()
     char receive[40];
     Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
 
-    if (length > 0) {
-      while (fona.available()) {
+    // This is blocking, because the complete reply has not arrived yet.
+    while (length > 0) {
+      if (fona.available()) {
         char c = fona.read();
         if (isprint( c ))
           receiveChars.write( c ); // add to array
         showData( &c, 1 );
+
+        length--;
       }
     }
     receiveChars.terminate();
