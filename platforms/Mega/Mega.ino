@@ -90,6 +90,7 @@ Adafruit_LSM303_Mag_Unified mag( 12345 );
 
 #include <NMEAGPS.h>
 NMEAGPS gps;
+gps_fix fix, prevFix;
 
 NeoGPS::Location_t waypoint( 532558000L, -43114000L ); // Llangefni
 
@@ -108,8 +109,7 @@ float compass; // orientation of the platform
 int oldSignature;  //  <-- what is this used for?  Never set, so always 0
 long maxSize;
 long newSize;
-float zheading;
-float ubloxBearing;
+
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -220,29 +220,21 @@ void checkGPS()
 {
   if (gps.available( gpsPort ))
   {
-    gps_fix fix = gps.read(); // save the latest
+    prevFix = fix;
+    fix     = gps.read(); // get the latest
 
-    if (fix.valid.location)
-    {
+    digitalWrite( ORANGE_LED, fix.valid.location );
+
+    if (fix.valid.location) {
       beep(100);
-      digitalWrite(ORANGE_LED,HIGH);
 
-      float range = fix.location.DistanceKm( base );
-      zheading = fix.heading();
+      float range = fix.location.DistanceKm( waypoint );
+      DEBUG_PORT.print( F("Distance km:             ") );
+      DEBUG_PORT.println( range );
 
-
-      //float heading = prevFix.location.BearingToDegrees ( currentFix.location );
-      //float bob = fix.location();
-      //zheading = fix.location.BearingToDegrees ( currentFix.location );
-      //prevFix = fix;
-
-
-      DEBUG_PORT.print( F("Zheading:             ") );
-      DEBUG_PORT.println(zheading,2);
-      
-      zdistance = range * MM_PER_KM;
+      distanceToWaypoint = range * MM_PER_KM;
       DEBUG_PORT.print( F("Distance mm:             ") );
-      DEBUG_PORT.println(zdistance);
+      DEBUG_PORT.println( distanceToWaypoint );
 
       bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
       DEBUG_PORT.print( F("Bearing:         ") );
@@ -261,30 +253,24 @@ void checkGPS()
 
       //readCompass();
 
-      // This switches data set that is transmitted to TC275 via I2C.
-      if (sendDataState == LOW)
-      {
-        characterCompileA(); // Bearing, distance and compass
-        sendDataState = HIGH;
-      }
-      else
-      {
-        characterCompileB(); // Longitude and latitude
-        sendDataState = LOW;
+      if (prevFix.valid.location) {
+        // calculate heading from the current and previous locations
+        float heading = prevFix.location.BearingToDegrees( fix.location );
+        fix.hdg.whole = (int) heading;
+        fix.hdg.frac  = (heading - (float) fix.hdg.whole) * 100.0;
+        fix.valid.heading = true;
       }
 
     } else {
       DEBUG_PORT.write( '.' );
     }
 
-      //compass = ubloxBearing;
+    digitalWrite( USING_GPS_HEADING, fix.valid.heading );
 
-      // Waiting...
-      //DEBUG_PORT.print( '.' );
+    if (fix.valid.heading) {
+      DEBUG_PORT.print( F("heading:              ") );
+      DEBUG_PORT.println( fix.heading() );
     }
-
-    compassModule();
-
   }
 } // checkGPS
 
@@ -879,25 +865,14 @@ void compassModule()
   compass = atan2( yyy, xxx ) * RAD_TO_DEG;
   compass = compass + 270 +15; //Lower this value to make clockwise turn.
 
-  if (zheading!=0)
-  {
-    compass = zheading; // Overide compass with GPS derived heading
-    digitalWrite(USING_GPS_HEADING,HIGH);
-  }
-  else                  // Makes the machine drive straight ahead.
-  {
-    compass = zbearing/100;
-    digitalWrite(USING_GPS_HEADING,LOW);
-  }
-
   DEBUG_PORT.print( F("autoXMin:  ") ); DEBUG_PORT.println(autoXMin);
   DEBUG_PORT.print( F("autoXMax:  ") ); DEBUG_PORT.println(autoXMax);
   DEBUG_PORT.print( F("autoYMin:  ") ); DEBUG_PORT.println(autoYMin);
   DEBUG_PORT.print( F("autoYMax:  ") ); DEBUG_PORT.println(autoYMax);
-  //DEBUG_PORT.print( F("Compass Heading: ") );DEBUG_PORT.println(compass);
-  //DEBUG_PORT.println();
+  DEBUG_PORT.print( F("Compass :  ") ); DEBUG_PORT.println(compass );
+  DEBUG_PORT.println();
 
-} // compassModule
+} // readCompass
 
 ////////////////////////////////////////////////////////////////////////////
 
