@@ -785,76 +785,11 @@ void loop2()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
   if ((millisCalc4 > 5000)&&(millisCalc4 < 5200))    // timer4
   {
-    SerialASC.println("Transmit data to Fona:");
-    Wire.beginTransmission(43); // transmit to device #43 FONA Nano.
+    SerialASC.println("Request new PHP page via Fona:");
+    Wire.beginTransmission(26); // transmit to device #26 FONA Mega.
     Wire.write(phpPage); 
     Wire.endTransmission();    // stop transmitting
   }
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-  if ((millisCalc4 > 6000)&&(millisCalc4 < 7000))    // timer4
-  {
-    SerialASC.println("Recieve data from Fona");
-    Wire.requestFrom(43, 27);    // request 32 bytes from slave device #43 FONA Data
-    aa=0;
-    a="";
-    while (Wire.available()) 
-    {
-      //delay(1000);
-      char c = Wire.read();                         // receive a byte as character
-      if (isalpha(c))         // analyse c for letters
-      {
-        a=a+c;                // string = string + character
-        //SerialASC.print("a: ");SerialASC.println(a);
-        if (a=="LAT")
-        {
-          lon="";
-          lat=a;
-          //SerialASC.print("Trigger word LAT detected!: ");SerialASC.println(lat);
-          a="";
-        } 
-        if (a=="LONG")
-        {
-          lat="";
-          lon=a;
-          //SerialASC.print("Trigger word LONG detected!: ");SerialASC.println(lon);
-          a="";
-        } 
-      } 
-      if (lat=="LAT")
-      {
-        if (isdigit(c))         // analyse c for numerical digit
-        {
-          latFonaString=latFonaString+c;                // string = string + character
-        }
-      }
-      if (lon=="LONG")
-      {
-        if (isdigit(c))         // analyse c for numerical digit
-        {
-          lonFonaString=lonFonaString+c;                // string = string + character
-        }
-      }
-      if (lat=="LAT")
-      {
-        result=(latFonaString).toInt();
-        latFona = result;
-        //SerialASC.println("");
-        //SerialASC.print("Integer latitude Fona: ");SerialASC.println(latFona);
-      }
-      if (lon=="LONG")
-      {
-        result=(lonFonaString).toInt();
-        lonFona = result;
-        //SerialASC.println("");
-        //SerialASC.print("Integer longitude Fona: ");SerialASC.println(lonFona);
-      }   
-      //SerialASC.print(c);      // print the character
-      fonaData[aa] = c;          //fonaData character is then transmitted to Ublox for analysis.
-      aa++;
-    }
-    fonaData[aa] = '\0'; // NUL-terminate C string of Fona characters
-    previousMillis4Core3=currentMillisCore3; 
-  } // millisCalc4 ends                           
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
   if((distanceMetres<500)&&(phpPageInt<11)&&(phpPageInt==previousPhpPageInt))
   {
