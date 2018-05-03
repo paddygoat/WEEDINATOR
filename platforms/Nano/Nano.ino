@@ -85,53 +85,7 @@ void setup()
   pinMode( I2C_ACTIVITY, OUTPUT );
   digitalWrite( I2C_ACTIVITY, LOW );
 
-  fonaPort.begin( FONA_BAUD );
-  if (! fona.begin( fonaPort )) {
-    DEBUG_PORT.println( F("Couldn't find FONA") );
-    //while (1);
-  }
-  DEBUG_PORT.println( F("FONA is OK") );
-
-  uint8_t type = fona.type();
-  const __FlashStringHelper *typeString;
-  switch (type) {
-    case FONA800L:
-      typeString = F("FONA 800L");          break;
-    case FONA800H:
-      typeString = F("FONA 800H");          break;
-    case FONA808_V1:
-      typeString = F("FONA 808 (v1)");      break;
-    case FONA808_V2:
-      typeString = F("FONA 808 (v2)");      break;
-    case FONA3G_A:
-      typeString = F("FONA 3G (American)"); break;
-    case FONA3G_E:
-      typeString = F("FONA 3G (European)"); break;
-    default: 
-      typeString = F("???");                break;
-  }
-  DEBUG_PORT.print  ( F("Found ") );
-  DEBUG_PORT.println( typeString );
-
-  //networkStatus();   // Check the network is available. Home is good.
-  DEBUG_PORT.println();
-
-  DEBUG_PORT.println( F("Checking that GPRS is turned off to start with .........") );
-
-  fona.setGPRSNetworkSettings( CF(networkAPN), CF(username), CF(password) );
-  //delay (1000);
-
-  // Turn off GPRS:
-  if (!fona.enableGPRS(false))
-    DEBUG_PORT.println( F("FAILED: GPRS not turned off") );
-  else
-    DEBUG_PORT.println( F("GPRS turned off") );
-
-  //delay (1000);
-  //networkStatus();   // Check the network is available. Home is good.
-
-  turnOnGPRS();
-  turnOnGPRS();  // <-- why twice?
+  initFona();
 
   DEBUG_PORT.println( F("Let's now do some work with the database  ...........") );
 
@@ -287,17 +241,73 @@ void getWaypoint()
 
 void turnOnGPRS()
 {
-  DEBUG_PORT.println( F("Now attempting to turn on GPRS .........") );
+  while (true) {
+    DEBUG_PORT.println( F("Turning off GPRS ...") );
+    if (fona.enableGPRS(false)) {
+      DEBUG_PORT.println( F("GPRS turned off.") );
+    } else {
+      DEBUG_PORT.println( F("FAILED: GPRS not turned off") );
+    }
 
-  if (fona.enableGPRS(true)) {
-    digitalWrite(ORANGE_LED, HIGH);
-    //DEBUG_PORT.println( F("Wait for 10 seconds to make sure GPRS is on ..........." ));
-    //delay (10000);
-  } else {
-    //DEBUG_PORT.println(("No - Failed to turn on"));
+    DEBUG_PORT.println( F("Turning on GPRS ...") );
+    if (fona.enableGPRS(true)) {
+      DEBUG_PORT.println( F("GPRS turned on.") );
+      break;
+    } else {
+      DEBUG_PORT.println( F("FAILED: GPRS not turned on, retrying"));
+    }
+
+    delay( 1000 );
   }
 
 } // turnOnGPRS
+
+////////////////////////////////////////////////////////////////////////////
+
+void initFona()
+{
+  fonaPort.begin( FONA_BAUD );
+  if (! fona.begin( fonaPort )) {
+    DEBUG_PORT.println( F("Couldn't find FONA") );
+    //while (1);
+  }
+  DEBUG_PORT.println( F("FONA is OK") );
+
+  uint8_t type = fona.type();
+  const __FlashStringHelper *typeString;
+  switch (type) {
+    case FONA800L:
+      typeString = F("FONA 800L");          break;
+    case FONA800H:
+      typeString = F("FONA 800H");          break;
+    case FONA808_V1:
+      typeString = F("FONA 808 (v1)");      break;
+    case FONA808_V2:
+      typeString = F("FONA 808 (v2)");      break;
+    case FONA3G_A:
+      typeString = F("FONA 3G (American)"); break;
+    case FONA3G_E:
+      typeString = F("FONA 3G (European)"); break;
+    default: 
+      typeString = F("???");                break;
+  }
+  DEBUG_PORT.print  ( F("Found ") );
+  DEBUG_PORT.println( typeString );
+
+  //networkStatus();   // Check the network is available. Home is good.
+  DEBUG_PORT.println();
+
+  DEBUG_PORT.println( F("Checking that GPRS is turned off to start with .........") );
+
+  fona.setGPRSNetworkSettings( CF(networkAPN), CF(username), CF(password) );
+  //delay (1000);
+
+  //delay (1000);
+  //networkStatus();   // Check the network is available. Home is good.
+
+  turnOnGPRS();
+
+} // initFona
 
 ////////////////////////////////////////////////////////////////////////////
 
