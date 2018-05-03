@@ -1,7 +1,29 @@
 #define DEBUG_PORT Serial
-#define gpsPort    Serial1
-const uint32_t GPS_BAUD = 19200;
+const uint32_t DEBUG_BAUD = 115200;
 
+#define gpsPort    Serial1
+
+//#define SIMULATE_DEVICES  // comment this out for real system
+
+#if defined( SIMULATE_DEVICES )
+
+  const uint32_t GPS_BAUD   =  9600;
+
+  const uint32_t FONA_BAUD  = DEBUG_BAUD;
+  #define fonaPort   Serial
+
+  static const bool useConsole = true;
+
+#else
+
+  const uint32_t GPS_BAUD   =  19200;
+
+  #define fonaPort   Serial2
+  const uint32_t FONA_BAUD  =   4800;
+
+  static const bool useConsole = false;
+
+#endif
 
 const int SPEAKER             = 10;
 const int I2C_REQUEST         = 12;
@@ -21,9 +43,10 @@ const uint16_t BEEP_FREQUENCY   = 2500; // Hz
 //   disable the code for that device.  This is
 //   handy for my testing.
 
-static const bool usePixy    = true;
-static const bool useCompass = true;
-static const bool useI2C     = true;
+static const bool usePixy    = not useConsole;
+static const bool useCompass = not useConsole;
+static const bool useI2C     = not useConsole;
+static const bool useFona    = not useConsole;
 
 
 #include <Wire.h>
@@ -110,7 +133,7 @@ void ServoLoop::update(int32_t error)
 
 void setup()
 {
-  DEBUG_PORT.begin(115200);
+  DEBUG_PORT.begin( DEBUG_BAUD );
   DEBUG_PORT.println( F("Mega") );
 
   gpsPort.begin( GPS_BAUD );
