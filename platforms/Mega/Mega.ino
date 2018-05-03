@@ -215,6 +215,74 @@ void loop()
 } // loop
 
 ////////////////////////////////////////////////////////////////////////////
+//  For testing, accept commands from the "console" to simulate:
+//     *  receiving a new waypoint ID from the TC275
+//     *  receiving a PHP response with waypoint lat/lon
+
+//  Some variables to receive a line of characters
+size_t         count     = 0;
+const size_t   MAX_CHARS = 64;
+char           line[ MAX_CHARS ];
+
+void checkConsole()
+{
+  if (useConsole) {
+
+    if (lineReady()) {
+      size_t lineLen = strlen( line );
+
+      if (lineLen > 0) {
+
+        if ((line[0] == 'w') and (lineLen > 1)) {
+          // simulate receiving a waypoint id from the TC275
+          newWaypointID = atoi( &line[1] );
+
+        } else if ((line[0] == 'p')  and (lineLen > 1)) {
+          // simulate receiving a response to the GET request
+          parseWaypoint( &line[1], lineLen-1 );
+
+        } else if (line[0] == 's') {
+          // simulate sending messages to the TC275
+          sendNavData();
+        
+        } else {
+          DEBUG_PORT.println( F("Invalid command" ) );
+        }
+      }
+    }
+  }
+} // checkConsole
+
+bool lineReady()
+{
+  bool          ready     = false;
+  const char    endMarker = '\n';
+
+  while (DEBUG_PORT.available()) {
+
+    char c = DEBUG_PORT.read();
+
+    if (c != endMarker) {
+
+      // Only save the printable characters, if there's room
+      if (isprint(c) and (count < MAX_CHARS-1)) {
+        line[ count++ ] = c;
+      }
+
+    } else {
+      //  It's the end marker, line is completely received
+      line[count] = '\0'; // terminate the string
+      count       = 0;    // reset for next time
+      ready       = true;
+      break;
+    }
+  }
+
+  return ready;
+
+} // lineReady
+
+////////////////////////////////////////////////////////////////////////////
 
 void checkGPS()
 {
