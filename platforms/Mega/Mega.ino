@@ -329,16 +329,16 @@ void pixyModule()
     {
       DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
       DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-      //compassModule();
+      //readCompass();
     }
 
-    compass = bearing + panError*0.2;
+    compass = bearingToWaypoint + panError*0.2; // <-- OK???
 
   } else {
     // No blocks
     digitalWrite(PIXY_PROCESSING,LOW);
   }
-  //compassModule();
+  //readCompass();
 
   int trackedBlock = 0;
   maxSize = 0;
@@ -816,7 +816,7 @@ float autoYMax = -1000.0;
 float autoYMin =  1000.0;
 //unsigned long compassCount = 0;
 
-void compassModule()
+void readCompass()
 {
   if (not useCompass)
     return;
