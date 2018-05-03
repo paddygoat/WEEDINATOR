@@ -910,10 +910,6 @@ void loop2()
   SerialASC.println("");
   } // millisCalc3
   
-  Wire.beginTransmission(26); // transmit to device #26 Ublox controller Pro Micro.
-  Wire.write(fonaData); 
-  Wire.endTransmission();    // stop transmitting
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
   Wire.requestFrom(26, 32);    // request 32 bytes from slave device #26 UBLOX Data // Dont use 25.
