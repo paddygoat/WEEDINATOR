@@ -707,7 +707,7 @@ void setup2()
   tft.setTextSize(4);
   tft.setCursor(0, 20);
   tft.println("WEEDINATOR");
-  Wire.beginTransmission(43); // transmit to device #43 FONA Nano.
+  Wire.beginTransmission(26); // transmit to FONA controller.
   Wire.write(phpPage); 
   Wire.endTransmission();    // stop transmitting
   tone(2,1000,1000);   // pin,pitch,duration
@@ -1045,7 +1045,7 @@ void loop2()
         //SerialASC.print("Trigger word DIST detected!: ");SerialASC.println(distanceString);
         a="";
       } 
-      if (a=="COMP")
+      if (a=="HEAD")
       {
         lat="";
         lon="";
@@ -1054,7 +1054,7 @@ void loop2()
         bearing="";
         distance="";
         compass=a;    // String = string.
-        //SerialASC.print("Trigger word COMP detected!: ");SerialASC.println(compass);
+        //SerialASC.print("Trigger word HEAD detected!: ");SerialASC.println(compass);
         a="";
       } 
     } 
@@ -1086,7 +1086,7 @@ void loop2()
         distanceString=distanceString+c;                // string = string + character
       }
     }
-    if (compass=="COMP")
+    if (compass=="HEAD")
     {
       if (isdigit(c))         // analyse c for numerical digit
       {
@@ -1123,7 +1123,7 @@ void loop2()
       //SerialASC.println("");
       //SerialASC.print("distanceMetres integer: ");SerialASC.println(distanceMetres);
     }
-    if (compass=="COMP")
+    if (compass=="HEAD")
     {
       result=(compassString).toInt();
       compassFloat = result/100.00;
