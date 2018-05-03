@@ -52,6 +52,9 @@ static const bool useFona    = not useConsole;
 
 #include <Wire.h>
 
+volatile int newWaypointID = 0;
+         int waypointID    = 0;
+
 #include <Adafruit_FONA.h>
 Adafruit_FONA fona( FONA_RST );
 
@@ -84,7 +87,7 @@ Adafruit_LSM303_Mag_Unified mag( 12345 );
 #include <NMEAGPS.h>
 NMEAGPS gps;
 
-NeoGPS::Location_t base( 532558000L, -43114000L ); // Llangefni
+NeoGPS::Location_t waypoint( 532558000L, -43114000L ); // Llangefni
 
 const float MM_PER_M  = 1000.0;
 const float M_PER_KM  = 1000.0;
@@ -93,15 +96,10 @@ const float MM_PER_KM = MM_PER_M * M_PER_KM;
 
 #include <NeoPrintToRAM.h>
 
-long zz;
-long yy;
-float bearing;
-int zbearing;
-long zdistance;
+float bearingToWaypoint;  // degrees
+float distanceToWaypoint; // mm
 
-int sendDataState = LOW;
-
-double compass;
+float compass; // orientation of the platform
 
 int oldSignature;  //  <-- what is this used for?  Never set, so always 0
 long maxSize;
@@ -198,6 +196,7 @@ void loop()
   heartbeat      ();
   checkBeep      ();
   checkGPS       ();
+  checkNavData   ();
   pixyModule     ();
   checkForFonaMsg();
 
@@ -233,28 +232,22 @@ void checkGPS()
       DEBUG_PORT.print( F("Distance mm:             ") );
       DEBUG_PORT.println(zdistance);
 
-      ubloxBearing = fix.location.BearingToDegrees( base );
-      bearing = ubloxBearing;
-      zbearing = ubloxBearing * 100; //Float to integer. zbearing is sent to TC275.
-      
+      bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
       DEBUG_PORT.print( F("Bearing:         ") );
-      DEBUG_PORT.println(ubloxBearing,5);
-      DEBUG_PORT.print( F("Compass Heading: ") );
-      DEBUG_PORT.println(compass);
+      DEBUG_PORT.println( bearingToWaypoint );
       DEBUG_PORT.println();
 
-      zz = (fix.location.lat()); // zz is a 'long integer'.
-      yy = (fix.location.lon());
-
-      //DEBUG_PORT.print( F("Current Ublox latitude:  ") );
-      //DEBUG_PORT.println(zz);
-      //DEBUG_PORT.print( F("Latitude from Fona:      ") );
-      //DEBUG_PORT.println( base.lat() );
-      //DEBUG_PORT.print( F("Current Ublox longitude: ") );
-      //DEBUG_PORT.println(yy);
-      //DEBUG_PORT.print( F("Longitude from Fona:     ") );
-      //DEBUG_PORT.println( base.lon() );
+      //DEBUG_PORT.print( F("Current GPS latitude:  ") );
+      //DEBUG_PORT.println( fix.location.lat() );
+      //DEBUG_PORT.print( F("Waypoint Latitude from Fona:      ") );
+      //DEBUG_PORT.println( waypoint.lat() );
+      //DEBUG_PORT.print( F("Current GPS longitude: ") );
+      //DEBUG_PORT.println( fix.location.lon() );
+      //DEBUG_PORT.print( F("Waypoint Longitude from Fona:     ") );
+      //DEBUG_PORT.println( waypoint.lon() );
       //DEBUG_PORT.println();
+
+      //readCompass();
 
       // This switches data set that is transmitted to TC275 via I2C.
       if (sendDataState == LOW)
@@ -269,9 +262,8 @@ void checkGPS()
       }
 
     } else {
-      // No valid location, machine will drive in straight 
-      //    line until fix received or pixie overrides it.
-      digitalWrite( ORANGE_LED, LOW );
+      DEBUG_PORT.write( '.' );
+    }
 
       //compass = ubloxBearing;
 
@@ -723,63 +715,97 @@ volatile bool navDataSent = false;
 void sendNavData()
 {
   digitalWrite(I2C_REQUEST,HIGH);
-  //DEBUG_PORT.println( F("Request event start  ") );
-  Wire.write(url);     // as expected by master
-  //delay(100);
-  //DEBUG_PORT.println( F("Request event end  ") );
+
+  if (useI2C) {
+    Wire.write(navData);     // as expected by master
+  } else {
+    DEBUG_PORT.print( F("TC275 --> ") );
+    showData( navData, strlen(navData) );
+  }
+
+  navDataSent = true;
+
   digitalWrite(I2C_REQUEST,LOW);
 
 } // sendNavData
 
 ////////////////////////////////////////////////////////////////////////////
 
+void checkNavData()
+{
+  if (navDataSent) {
+    // compile the next message
+    nextNavState();
+    updateNavData();
+    navDataSent = false;
+  }
+}
+
+enum     navDataState_t { BEARING_DIST_HEAD, LAT_LON, LAST_NAV_STATE };
+const    navDataState_t FIRST_NAV_STATE = (navDataState_t) 0;
+volatile navDataState_t navDataState;
+
+void nextNavState()
+{
+  navDataState = (navDataState_t) (navDataState + 1);
+  if (navDataState == LAST_NAV_STATE)
+    navDataState = FIRST_NAV_STATE;
+
+} // nextNavState
+
+void updateNavData()
+{
+  switch (navDataState) {
+    case BEARING_DIST_HEAD: compileBearDistHeadMsg(); break;
+    case LAT_LON          : compileLatLonMsg      (); break;
+  }
+
+} // updateNavData
+
 ////////////////////////////////////////////////////////////////////////////
 
-// For sending Ublox bearing and distance data to TC275
-
-void characterCompileA()
+void compileBearDistHeadMsg()
 {
-  Neo::PrintToRAM msg( url, sizeof(url) );
+  Neo::PrintToRAM msg( navData, sizeof(navData) );
 
-  // Prevent requestEvent from getting the first half of the old
+  // Prevent sendNavData from getting the first half of the old
   //   response and the second half of the new response.
   noInterrupts();
     msg.print( F("BEAR") );
-    msg.print( zbearing );
+    msg.print( (int) (bearingToWaypoint * 100.0) );
     msg.print( F("DIST") );
-    msg.print( zdistance );
-    msg.print( F("COMP") );
-    msg.print( compass );
+    msg.print( (long) distanceToWaypoint );
+    msg.print( F("HEAD") );
+    if (fix.valid.heading)
+      msg.print( fix.heading() );
     msg.terminate();
   interrupts();
 
-  //DEBUG_PORT.print( F("msg A to send:  ") );
-  //DEBUG_PORT.println( url );
+  DEBUG_PORT.print( F("msg A to send:  ") );
+  DEBUG_PORT.println( navData );
 
-} // characterCompileA
+} // compileBearDistHeadMsg
 
 ////////////////////////////////////////////////////////////////////////////
 
-// For sending Ublox lat and long to TC275
-
-void characterCompileB()
+void compileLatLonMsg()
 {
-  Neo::PrintToRAM msg( url, sizeof(url) );
+  Neo::PrintToRAM msg( navData, sizeof(navData) );
 
-  // Prevent requestEvent from getting the first half of the old
+  // Prevent sendNavData from getting the first half of the old
   //   response and the second half of the new response.
   noInterrupts();
     msg.print( F("LOON") );
-    msg.print( yy );
+    msg.print( fix.location.lon() );
     msg.print( F("LAAT") );
-    msg.print( zz );
+    msg.print( fix.location.lat() );
     msg.terminate();
   interrupts();
 
-  //DEBUG_PORT.print( F("msg B to send:  ") );
-  //DEBUG_PORT.println( url );
+  DEBUG_PORT.print( F("msg B to send:  ") );
+  DEBUG_PORT.println( navData );
 
-} // characterCompileB
+} // compileLatLonMsg
 
 ////////////////////////////////////////////////////////////////////////////
 
