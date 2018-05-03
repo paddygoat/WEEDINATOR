@@ -25,6 +25,7 @@ const uint32_t DEBUG_BAUD = 115200;
 
 #endif
 
+const int FONA_RST            = 5;
 const int SPEAKER             = 10;
 const int I2C_REQUEST         = 12;
 const int I2C_RECEIVE         = 13;
@@ -50,11 +51,23 @@ static const bool useFona    = not useConsole;
 
 
 #include <Wire.h>
-volatile bool   fonaMsgAvailable = false;
-volatile bool   fonaMsgLost      = false;
-         size_t fonaMsgLen       = 0;
-         char   fonaMsg[33];
 
+#include <Adafruit_FONA.h>
+Adafruit_FONA fona( FONA_RST );
+
+
+// Change these settings! (Network APN, username ,password)
+const char networkAPN[] PROGMEM = "pp.vodafone.co.uk";
+const char username  [] PROGMEM = "wap";
+const char password  [] PROGMEM = "wap";
+const char webAddress[] PROGMEM =
+  "http://www.goatindustries.co.uk/weedinator/select";
+const char dotPhp    [] PROGMEM = ".php";
+
+// Handy macro for passing PROGMEM char arrays to anything 
+//   that expects a FLASH string, like DEBUG_PORT.print or 
+//   fona.setGPRSNetworkSettings
+#define CF(x) ((const __FlashStringHelper *)x)
 
 
 #include <Pixy.h>
@@ -79,7 +92,6 @@ const float MM_PER_KM = MM_PER_M * M_PER_KM;
 
 
 #include <NeoPrintToRAM.h>
-char url[120];
 
 long zz;
 long yy;
@@ -143,8 +155,8 @@ void setup()
 
   if (useI2C) {
     Wire.begin( MEGA_I2C_ADDR );
-    Wire.onReceive(receiveEvent); // register event
-    Wire.onRequest(requestEvent); // register event
+    Wire.onReceive(receiveNewWaypoint); // register event
+    Wire.onRequest(sendNavData); // register event
   }
 
   if (useCompass) {
@@ -175,6 +187,8 @@ void setup()
   delay(1000);
   digitalWrite(PIXY_PROCESSING,LOW);
   digitalWrite(USING_GPS_HEADING,LOW);
+
+  initFona();
 
 } // setup
 
@@ -356,72 +370,237 @@ void pixyModule()
 
 ////////////////////////////////////////////////////////////////////////////
 
-void checkForFonaMsg()
-{
-  if (fonaMsgAvailable) {
-    parseFonaMsg();
+      uint32_t lastPHP              = 0;
+const uint32_t MIN_PHP_CHECK_PERIOD = 1000;
 
-    // now that the parsing is finished, mark the message as "read"
-    fonaMsgAvailable = false; 
+void checkWaypoint()
+{
+  // Don't try to get waypoints too quickly
+  if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
+
+    // Was a new waypoint requested?
+    disableInterrupts();
+      int safeID = newWaypointID;
+    enableInterrupts();
+
+    if (waypointID != safeID) {
+
+      waypointID = safeID;
+      DEBUG_PORT.print( F("New Waypoint ID ") );
+      DEBUG_PORT.println( waypointID );
+
+      // Yes, get it now.
+      getWaypoint();
+      lastPHP = millis();
+    }
   }
 
-  // see if we lost a message sometime
-  if (fonaMsgLost) {
-    fonaMsgLost = false;
-    DEBUG_PORT.println( F("FONA message lost!") );
-  }
+} // checkWaypoint
 
-} // checkForFonaMsg
+///////////////////////////////////////////////////////////////////////
 
-
-void parseFonaMsg()
+void getWaypoint()
 {
-  char   *ptr       = &fonaMsg[0]; // point to the beginning
-  size_t  remaining = fonaMsgLen;
+  if (not useFona)
+    return;
 
+  DEBUG_PORT.print( F("Select php page from TC275:        ") );
+  DEBUG_PORT.println( waypointID );
+
+  // Builds the url character array:
+  char url[60];
+  Neo::PrintToRAM urlChars( url, sizeof(url) );
+  urlChars.print( CF(webAddress) );
+  urlChars.print( waypointID );
+  urlChars.print( CF(dotPhp) );
+  urlChars.terminate(); // add NUL terminator to this C string
+
+  //urlChars.print( F("bollox") );
+  //urlChars.print( waypointID );
+  //urlChars.print( F(".php") );
+  //urlChars.terminate();
+
+  DEBUG_PORT.print( F("url for GET request:       ") );
+  showData( url, strlen(url) );
+  DEBUG_PORT.println();
+
+  digitalWrite(BLUE_LED, HIGH);
+
+  // Issue GET request.  Reply will be a waypoint ID.
+  uint16_t statuscode;
+  uint16_t length;
+
+  if (fona.HTTP_GET_start( url, &statuscode, &length )) {
+
+    char receive[40];
+    Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
+
+    // This is blocking, because the complete reply has not arrived yet.
+    DEBUG_PORT.print( F("Raw PHP reply: '") );
+    while (length > 0) {
+      if (fona.available()) {
+        char c = fona.read();
+        if (isprint( c ))
+          receiveChars.write( c ); // add to array
+        showData( &c, 1 );
+
+        length--;
+      }
+      yield();
+    }
+    receiveChars.terminate();
+    DEBUG_PORT.println('\'');
+
+    DEBUG_PORT.print( F("Lat and Lon from database (receive):     ") );
+    showData( receive, receiveChars.numWritten() );
+    DEBUG_PORT.println();
+
+    parseWaypoint( receive, receiveChars.numWritten() );
+
+  } else {
+     DEBUG_PORT.println( F("HTTP GET Failed!") );
+  }
+ 
+  DEBUG_PORT.println( F("\n****") );
+  fona.HTTP_GET_end();
+
+  digitalWrite(BLUE_LED, LOW);
+
+  beep(1000);
+
+} // getWaypoint
+
+////////////////////////////////////////////////////////////////////////////
+
+void parseWaypoint( char *ptr, size_t remaining )
+{
   static const char     LAT_LABEL[] PROGMEM = "LAT";
   static const size_t   LAT_LABEL_LEN       = sizeof(LAT_LABEL)-1;
   static const char     LON_LABEL[] PROGMEM = "LONG";
   static const size_t   LON_LABEL_LEN       = sizeof(LON_LABEL)-1;
                uint32_t latValue, lonValue;
 
-  if (findText( LAT_LABEL, LAT_LABEL_LEN, ptr, remaining )) {
+  if (remaining > 0) {
+    // Skip the first character (what is it?)
+    ptr++;
+    remaining--;
 
-    if (parseValue( ptr, remaining, latValue )) {
+    if (findText( LAT_LABEL, LAT_LABEL_LEN, ptr, remaining )) {
 
-      if (findText( LON_LABEL, LON_LABEL_LEN, ptr, remaining )) {
+      if (parseValue( ptr, remaining, latValue )) {
 
-        if (parseValue( ptr, remaining, lonValue )) {
+        if (findText( LON_LABEL, LON_LABEL_LEN, ptr, remaining )) {
 
-          // Set the new base location
-          base.lat( latValue );
-          base.lon( lonValue );
+          if (parseValue( ptr, remaining, lonValue )) {
 
-          DEBUG_PORT.print  ( F("Location from Fona:  ") );
-          DEBUG_PORT.print  ( base.lat() );
-          DEBUG_PORT.print  ( ',' );
-          DEBUG_PORT.println( base.lon() );
+            // Set the new waypoint location
+            waypoint.lat( latValue );
+            waypoint.lon( lonValue );
 
-          //  Make sure we used all the characters
-          if (remaining > 0) {
-            DEBUG_PORT.print( remaining );
-            DEBUG_PORT.print( F(" extra characters after lonValue: '") );
-            showData( ptr, remaining );
-            DEBUG_PORT.println('\'');
+            DEBUG_PORT.print  ( F("Location from Fona:  ") );
+            DEBUG_PORT.print  ( waypoint.lat() );
+            DEBUG_PORT.print  ( ',' );
+            DEBUG_PORT.println( waypoint.lon() );
+
+            //  Make sure we used all the characters
+            if (remaining > 0) {
+              DEBUG_PORT.print( remaining );
+              DEBUG_PORT.print( F(" extra characters after lonValue: '") );
+              showData( ptr, remaining );
+              DEBUG_PORT.println('\'');
+            }
+
+          } else {
+            DEBUG_PORT.println( F("Invalid longitude") );
           }
-
-        } else {
-          DEBUG_PORT.println( F("Invalid longitude") );
         }
-      }
 
-    } else {
-      DEBUG_PORT.println( F("Invalid latitude") );
+      } else {
+        DEBUG_PORT.println( F("Invalid latitude") );
+      }
     }
+  } else {
+    DEBUG_PORT.println( F("response too short") );
   }
 
-} // parseFonaMsg
+} // parseWaypoint
 
+///////////////////////////////////////////////////////////////////////
+
+void turnOnGPRS()
+{
+  while (true) {
+    DEBUG_PORT.println( F("Turning off GPRS ...") );
+    if (fona.enableGPRS(false)) {
+      DEBUG_PORT.println( F("GPRS turned off.") );
+    } else {
+      DEBUG_PORT.println( F("FAILED: GPRS not turned off") );
+    }
+
+    DEBUG_PORT.println( F("Turning on GPRS ...") );
+    if (fona.enableGPRS(true)) {
+      DEBUG_PORT.println( F("GPRS turned on.") );
+      break;
+    } else {
+      DEBUG_PORT.println( F("FAILED: GPRS not turned on, retrying"));
+    }
+
+    delay( 1000 );
+  }
+
+} // turnOnGPRS
+
+////////////////////////////////////////////////////////////////////////////
+
+void initFona()
+{
+  if (not useFona)
+    return;
+
+  fonaPort.begin( FONA_BAUD );
+  if (! fona.begin( fonaPort )) {
+    DEBUG_PORT.println( F("Couldn't find FONA") );
+    //while (1);
+  }
+  DEBUG_PORT.println( F("FONA is OK") );
+
+  uint8_t type = fona.type();
+  const __FlashStringHelper *typeString;
+  switch (type) {
+    case FONA800L:
+      typeString = F("FONA 800L");          break;
+    case FONA800H:
+      typeString = F("FONA 800H");          break;
+    case FONA808_V1:
+      typeString = F("FONA 808 (v1)");      break;
+    case FONA808_V2:
+      typeString = F("FONA 808 (v2)");      break;
+    case FONA3G_A:
+      typeString = F("FONA 3G (American)"); break;
+    case FONA3G_E:
+      typeString = F("FONA 3G (European)"); break;
+    default: 
+      typeString = F("???");                break;
+  }
+  DEBUG_PORT.print  ( F("Found ") );
+  DEBUG_PORT.println( typeString );
+
+  //networkStatus();   // Check the network is available. Home is good.
+  DEBUG_PORT.println();
+
+  DEBUG_PORT.println( F("Checking that GPRS is turned off to start with .........") );
+
+  fona.setGPRSNetworkSettings( CF(networkAPN), CF(username), CF(password) );
+  //delay (1000);
+
+  //delay (1000);
+  //networkStatus();   // Check the network is available. Home is good.
+
+  turnOnGPRS();
+
+} // initFona
+
+////////////////////////////////////////////////////////////////////////////
 
 void showData( char *data, size_t n )
 {
@@ -526,7 +705,22 @@ void heartbeat()
 
 ////////////////////////////////////////////////////////////////////////////
 
-void requestEvent()
+void receiveNewWaypoint(int howMany)
+{
+  while (Wire.available()) {
+    char c = Wire.read();
+    if (isdigit(c)) {
+      newWaypointID = c - '0'; // E.g., char '5' to integer value 5
+    }
+  }
+} // receiveNewWaypoint
+
+////////////////////////////////////////////////////////////////////////////
+
+         char navData[120];
+volatile bool navDataSent = false;
+
+void sendNavData()
 {
   digitalWrite(I2C_REQUEST,HIGH);
   //DEBUG_PORT.println( F("Request event start  ") );
@@ -535,43 +729,9 @@ void requestEvent()
   //DEBUG_PORT.println( F("Request event end  ") );
   digitalWrite(I2C_REQUEST,LOW);
 
-} // requestEvent
+} // sendNavData
 
 ////////////////////////////////////////////////////////////////////////////
-
-// Receive lat and long data from FONA via TC275 for 
-//   calculating bearings and distances.
-
-void receiveEvent(int howMany)
-{
-  //digitalWrite(I2C_RECEIVE,HIGH);
-
-  if (not fonaMsgAvailable) {
-
-    // Get the whole message
-    fonaMsgLen = 0;
-    while (Wire.available()) {
-      char c = Wire.read();
-      // If it's a printable char (not CR/LF) and there's room, save it.
-      if (isprint(c) and (fonaMsgLen < sizeof(fonaMsg)-1))
-        fonaMsg[ fonaMsgLen++ ] = c;
-    }
-    fonaMsg[ fonaMsgLen ] = '\0'; // NUL-terminate;
-
-    fonaMsgAvailable = true;
-
-  } else {
-    // fonaMsgAvailable is still true, loop must not have parsed it yet.
-    //   This means that this Fona message must be ignored.
-
-    while (Wire.available())
-      Wire.read();
-    fonaMsgLost = true;
-  }
-
-  //digitalWrite(I2C_RECEIVE,LOW);
-
-} // receiveEvent
 
 ////////////////////////////////////////////////////////////////////////////
 
