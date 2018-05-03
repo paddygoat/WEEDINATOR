@@ -261,6 +261,7 @@ void checkGPS()
         fix.valid.heading = true;
       }
 
+      updateNavData();
     } else {
       DEBUG_PORT.write( '.' );
     }
@@ -499,6 +500,8 @@ void parseWaypoint( char *ptr, size_t remaining )
               showData( ptr, remaining );
               DEBUG_PORT.println('\'');
             }
+
+            updateNavData();
 
           } else {
             DEBUG_PORT.println( F("Invalid longitude") );
