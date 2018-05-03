@@ -55,6 +55,10 @@ static const bool useFona    = not useConsole;
 volatile int newWaypointID = 0;
          int waypointID    = 0;
 
+static void disableInterrupts() { cli(); }
+static void enableInterrupts()  { sei(); }
+
+
 #include <Adafruit_FONA.h>
 Adafruit_FONA fona( FONA_RST );
 
@@ -191,14 +195,22 @@ void setup()
 } // setup
 
 
+void yield()
+{
+  heartbeat    ();
+  checkBeep    ();
+  checkGPS     ();
+  checkNavData ();
+  checkConsole ();
+
+} // yield
+
+
 void loop()
 {
-  heartbeat      ();
-  checkBeep      ();
-  checkGPS       ();
-  checkNavData   ();
-  pixyModule     ();
-  checkForFonaMsg();
+  yield        ();
+  pixyModule   ();
+  checkWaypoint();
 
 } // loop
 
