@@ -19,7 +19,7 @@ const uint32_t DEBUG_BAUD = 115200;
   const uint32_t GPS_BAUD   =  19200;
 
   #define fonaPort   Serial2
-  const uint32_t FONA_BAUD  =   4800;
+  const uint32_t FONA_BAUD  =   1200; // 4800;
 
   static const bool useConsole = false;
 
