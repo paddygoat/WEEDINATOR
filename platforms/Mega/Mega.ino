@@ -54,6 +54,8 @@ static const bool useFona    = not useConsole;
 
 volatile int newWaypointID = 0;
          int waypointID    = 0;
+bool newMsgA = false;
+bool newMsgB = false;
 
 static void disableInterrupts() { cli(); }
 static void enableInterrupts()  { sei(); }
@@ -218,6 +220,7 @@ void loop()
 //  For testing, accept commands from the "console" to simulate:
 //     *  receiving a new waypoint ID from the TC275
 //     *  receiving a PHP response with waypoint lat/lon
+//     *  displaying current message A/B
 
 //  Some variables to receive a line of characters
 size_t         count     = 0;
@@ -330,6 +333,8 @@ void checkGPS()
       }
 
       updateNavData();
+      newMsgA = newMsgB = true;
+
     } else {
       DEBUG_PORT.write( '.' );
     }
@@ -570,6 +575,7 @@ void parseWaypoint( char *ptr, size_t remaining )
             }
 
             updateNavData();
+            newMsgA = newMsgB = true;
 
           } else {
             DEBUG_PORT.println( F("Invalid longitude") );
@@ -850,8 +856,13 @@ void compileBearDistHeadMsg()
     msg.terminate();
   interrupts();
 
-  DEBUG_PORT.print( F("msg A to send:  ") );
-  DEBUG_PORT.println( navData );
+  if (newMsgA) {
+    newMsgA = false;
+    DEBUG_PORT.print( F("msg A to send:  ") );
+    DEBUG_PORT.println( navData );
+  } else {
+    DEBUG_PORT.print( 'A' );
+  }
 
 } // compileBearDistHeadMsg
 
@@ -871,8 +882,13 @@ void compileLatLonMsg()
     msg.terminate();
   interrupts();
 
-  DEBUG_PORT.print( F("msg B to send:  ") );
-  DEBUG_PORT.println( navData );
+  if (newMsgB) {
+    newMsgB = false;
+    DEBUG_PORT.print( F("msg B to send:  ") );
+    DEBUG_PORT.println( navData );
+  } else {
+    DEBUG_PORT.print( 'B' );
+  }
 
 } // compileLatLonMsg
 
