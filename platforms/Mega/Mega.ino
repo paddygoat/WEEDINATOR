@@ -240,7 +240,7 @@ void checkConsole()
           // simulate receiving a waypoint id from the TC275
           newWaypointID = atoi( &line[1] );
 
-        } else if ((line[0] == 'p')  and (lineLen > 1)) {
+        } else if ((line[0] == 'p') and (lineLen > 1)) {
           // simulate receiving a response to the GET request
           parseWaypoint( &line[1], lineLen-1 );
 
@@ -465,9 +465,6 @@ void checkWaypoint()
 
 void getWaypoint()
 {
-  if (not useFona)
-    return;
-
   DEBUG_PORT.print( F("Select php page from TC275:        ") );
   DEBUG_PORT.println( waypointID );
 
@@ -487,6 +484,9 @@ void getWaypoint()
   DEBUG_PORT.print( F("url for GET request:       ") );
   showData( url, strlen(url) );
   DEBUG_PORT.println();
+
+  if (not useFona)
+    return;
 
   digitalWrite(BLUE_LED, HIGH);
 
