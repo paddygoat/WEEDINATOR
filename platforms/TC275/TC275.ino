@@ -1,7 +1,10 @@
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
 /* Put your LMU RAM fast access variables that have no initial values here e.g. uint32 LMU_var; */
-
+int currentSensorValueFive;
+int currentSensorValueSix;
+float maxCurrentValueFive;
+float maxCurrentValueSix;
 float resultTwo;
 float resultThree;
 float resultFour;
@@ -9,6 +12,9 @@ EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
 StartOfInitialised_LMURam_Variables
+
+float runningmaxCurrentValueFive = 1;
+float runningmaxCurrentValueSix = 1;
 float resultOne = 1.0000;
 const int ledPin =  13;
 int ledStateOne = LOW;   
@@ -88,9 +94,10 @@ else
 if (finalDriveValue>=600)  //Backwards.
 {
   backwards = HIGH; forwards = LOW;
-  intervalThree = (600000/finalDriveValue)-450; // 140 is max speed.
-  intervalFour =  (600000/finalDriveValue)-450; // 140 is max speed.
+  intervalThree = (600000/finalDriveValue)+100; // 140 is max speed.
+  intervalFour =  (600000/finalDriveValue)+100; // 140 is max speed.
   speedDifferential();
+  torqueDifferential();
   digitalWrite(10,HIGH);
   digitalWrite(12,HIGH);
   if ((currentMicrosThree - previousMicrosThree >= intervalThree)&&(intervalThree>100))
@@ -107,16 +114,17 @@ if (finalDriveValue>=600)  //Backwards.
 if (finalDriveValue<400)//Forwards.
 {
   backwards = LOW; forwards = HIGH;
-  intervalThree = (finalDriveValue*2)+100; // 140 is max speed. Right hand wheel.
-  intervalFour = (finalDriveValue*2)+100; // 140 is max speed.
+  intervalThree = (finalDriveValue*2)+300; // 140 is max speed. Right hand wheel.
+  intervalFour = (finalDriveValue*2)+300; // 140 is max speed.
   speedDifferential();
+  torqueDifferential();
   //There are two main states that the steering is in 1) static at any angle and 2) moving to new angle. The main calculation is
   // speedDifferential(); but there is also actualTurnSpeedDifferential(); which is nested within speedDifferential(); and 
   // overides it if the steering is in the process of changing angle. The latter is important as the steering bearing is offset
   // away from the ideal position right above the wheel and means that the speed of the wheels needs to take account of the speed
   // of turn or else the wheels will effectively grind against each other.
-  digitalWrite(10,LOW);
-  digitalWrite(12,LOW);
+  digitalWrite(10,LOW); // Direction
+  digitalWrite(12,LOW); // Direction
   if (currentMicrosThree - previousMicrosThree >= intervalThree)
   {
     changeStateThree();
@@ -219,11 +227,16 @@ if (finalDriveValue<400)//Forwards.
   }
 //////////////////////////////////////////////////////////////////////////////////////////////////////
   difference = finalSteeringValue - previousFinalSteeringValue;
-//////////////////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////////
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////
-
+void torqueDifferential()
+{
+  // Make RH wheel turn slightly faster if current in LH wheel too high. Three and five is LH and Four and six is RH.
+  // Weighting is 6:4.
+  intervalFour = ((0.60*intervalFour) + (0.40*(intervalFour * (runningmaxCurrentValueSix / runningmaxCurrentValueFive))));
+}
 void speedDifferential()
 {
   ferrets = map(wheelsPosition,-1,-15000,1,15000);  //Changes all negative values of wheelsPosition to positive.
@@ -470,17 +483,53 @@ int m=0;
 int makeTurnValue =0;
 long distanceMetres =0;
 int controlState = LOW;
+int ic=0;
+int icMax =0;
+unsigned long currentMillis = 0;
+unsigned long previousMillisFive = 0;
+unsigned long previousMillisSix = 0;
+int intervalFive = 0;
+const int intervalSix = 1000;
+int millisCalcFive =0;
+int millisCalcSix =0;
+int ACFrequency = 50; // Hertz
 EndOfInitialised_CPU1_Variables
   
 void setup1() 
 {
   pinMode(23,INPUT);
+  intervalFive = 1000 / ACFrequency; 
 }
 void loop1() 
 {
+////////////////////////////////////////////////////////////////////////////// 
+  ic = 0;
+  while (ic < intervalFive)   // AC 50 hertz is equivalent to 20 ms per AC cycle
+  {
+    ic++;
+    delay(1);                 // Capture data over one complete AC cycle.
+    currentSensorValueFive = analogRead(A3);
+    currentSensorValueSix = analogRead(A2);
+    if(currentSensorValueFive > maxCurrentValueFive)
+    {
+      maxCurrentValueFive = currentSensorValueFive;
+    }
+    if(currentSensorValueSix > maxCurrentValueSix)
+    {
+      maxCurrentValueSix = currentSensorValueSix;
+    }
+  }
+//////////////////////////////////////////////////////////////////////////////
+    runningmaxCurrentValueFive = (maxCurrentValueFive - 523)/80;
+    runningmaxCurrentValueSix = (maxCurrentValueSix - 523)/80;
+    maxCurrentValueFive = 0;
+    maxCurrentValueSix = 0;
+    //SerialASC.print("  LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
+    //SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
+//////////////////////////////////////////////////////////////////////////////
   driveValue=0;
   k=0;
-  while(k<200)
+  while(k<100)
   { 
     driveValue = driveValue + analogRead(A1);
     k++;
@@ -516,8 +565,8 @@ void loop1()
   }
   // makeTurn HIGH is clockwise
   // makeTurnValue is degrees to turn
-  delay(10);
-}
+
+} // loop end
 void changeStateOne()
 {
   unsigned long currentMicrosOne = micros();
@@ -845,6 +894,9 @@ void loop2()
      SerialASC.print("IntervalThree= ");SerialASC.println(intervalThree,8);
     
   SerialASC.println("");
+  SerialASC.print("LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
+  SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
+  //SerialASC.print("  samples per cycle:  ");SerialASC.println(icMax);
   SerialASC.print("Data captured from Fona: ");SerialASC.println(fonaData);
   SerialASC.print("Integer latitude Fona:   ");SerialASC.println(latFona);
   SerialASC.print("Integer longitude Fona:   ");SerialASC.println(lonFona);
