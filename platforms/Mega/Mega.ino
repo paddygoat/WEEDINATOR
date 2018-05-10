@@ -203,6 +203,8 @@ void loop()
 //     *  receiving a PHP response with waypoint lat/lon
 //     *  displaying current message A/B
 
+bool           gotConsolePHP = false;
+
 //  Some variables to receive a line of characters
 size_t         count     = 0;
 const size_t   MAX_CHARS = 64;
@@ -224,6 +226,7 @@ void checkConsole()
         } else if ((line[0] == 'p') and (lineLen > 1)) {
           // simulate receiving a response to the GET request
           parseWaypoint( &line[1], lineLen-1 );
+          gotConsolePHP = true;
 
         } else if (line[0] == 's') {
           // simulate sending messages to the TC275
@@ -463,8 +466,15 @@ void getWaypoint()
   showData( url, strlen(url) );
   DEBUG_PORT.println();
 
-  if (not useFona)
+  if (not useFona) {
+    if (useConsole) {
+      DEBUG_PORT.print( F("Enter PHP response:") );
+      gotConsolePHP = false;
+      while (!gotConsolePHP)
+        yield();
+    }
     return;
+  }
 
   digitalWrite(BLUE_LED, HIGH);
 
