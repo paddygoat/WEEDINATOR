@@ -413,13 +413,13 @@ void pixyModule()
 
 ////////////////////////////////////////////////////////////////////////////
 
-      uint32_t lastPHP              = 0;
+      uint32_t lastPHPcheck         = 0;
 const uint32_t MIN_PHP_CHECK_PERIOD = 1000;
 
 void checkWaypoint()
 {
   // Don't try to get waypoints too quickly
-  if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
+  if (millis() - lastPHPcheck >= MIN_PHP_CHECK_PERIOD) {
 
     if ((waypointID < LAST_WAYPOINT_ID) &&
         (distanceToWaypoint < WAYPOINT_DISTANCE_THRESHOLD)) {
@@ -433,7 +433,7 @@ void checkWaypoint()
 
       // Yes, get it now.
       getWaypoint();
-      lastPHP = millis();
+      lastPHPcheck = millis();
     }
   }
 
