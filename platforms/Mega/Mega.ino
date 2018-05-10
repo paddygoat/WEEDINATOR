@@ -53,8 +53,9 @@ static const bool useFona    = not useConsole;
 
 #include <Wire.h>
 
-volatile int newWaypointID = 0;
-         int waypointID    = 0;
+      int waypointID       = 1;
+const int LAST_WAYPOINT_ID = 11;
+
 bool newMsgA = false;
 bool newMsgB = false;
 
@@ -104,8 +105,9 @@ const float MM_PER_KM = MM_PER_M * M_PER_KM;
 
 #include <NeoPrintToRAM.h>
 
-float bearingToWaypoint;  // degrees
-float distanceToWaypoint; // mm
+      float bearingToWaypoint;  // degrees
+      float distanceToWaypoint; // mm
+const float WAYPOINT_DISTANCE_THRESHOLD = 500.0; // mm
 
 float compass; // orientation of the platform
 
@@ -195,6 +197,8 @@ void setup()
 
   initFona();
 
+  getWaypoint();
+
 } // setup
 
 
@@ -219,7 +223,7 @@ void loop()
 
 ////////////////////////////////////////////////////////////////////////////
 //  For testing, accept commands from the "console" to simulate:
-//     *  receiving a new waypoint ID from the TC275
+//     *  picking a new waypoint ID
 //     *  receiving a PHP response with waypoint lat/lon
 //     *  displaying current message A/B
 
@@ -237,9 +241,9 @@ void checkConsole()
 
       if (lineLen > 0) {
 
-        if ((line[0] == 'w') and (lineLen > 1)) {
-          // simulate receiving a waypoint id from the TC275
-          newWaypointID = atoi( &line[1] );
+        if (line[0] == 'w') {
+          // simulate going to a new waypoint id
+          distanceToWaypoint = 0;
 
         } else if ((line[0] == 'p') and (lineLen > 1)) {
           // simulate receiving a response to the GET request
@@ -443,14 +447,13 @@ void checkWaypoint()
   // Don't try to get waypoints too quickly
   if (millis() - lastPHP >= MIN_PHP_CHECK_PERIOD) {
 
-    // Was a new waypoint requested?
-    disableInterrupts();
-      int safeID = newWaypointID;
-    enableInterrupts();
+    if ((waypointID < LAST_WAYPOINT_ID) &&
+        (distanceToWaypoint < WAYPOINT_DISTANCE_THRESHOLD)) {
 
-    if (waypointID != safeID) {
+      beep( 500, 1000 ); // duration, pitch
 
-      waypointID = safeID;
+      // Get the next waypoint
+      waypointID++;
       DEBUG_PORT.print( F("New Waypoint ID ") );
       DEBUG_PORT.println( waypointID );
 
@@ -770,18 +773,6 @@ void heartbeat()
     digitalWrite( BLUE_LED, !digitalRead(BLUE_LED) ); // toggle
   }
 } // heartbeat
-
-////////////////////////////////////////////////////////////////////////////
-
-void receiveNewWaypoint(int howMany)
-{
-  while (Wire.available()) {
-    char c = Wire.read();
-    if (isdigit(c)) {
-      newWaypointID = c - '0'; // E.g., char '5' to integer value 5
-    }
-  }
-} // receiveNewWaypoint
 
 ////////////////////////////////////////////////////////////////////////////
 
