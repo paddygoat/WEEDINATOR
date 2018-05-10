@@ -866,12 +866,11 @@ void loop2()
   SerialASC.print("Integer longitude Fona:   ");SerialASC.println(lonFona);
   SerialASC.print("Integer latitude UBLOX:  ");SerialASC.println(latitudeUblox);
   SerialASC.print("Integer longitude UBLOX:  ");SerialASC.println(longitudeUblox); 
-  //SerialASC.print("Way point (phpPage)=     ");SerialASC.println(phpPage);
   //SerialASC.print("distanceMetres=          ");SerialASC.println(distanceMetres);
   //SerialASC.print("bearingInt=              ");SerialASC.println(bearingDegrees);
   SerialASC.print("Heading=                 ");SerialASC.println(bearingDegrees/100);
   SerialASC.print("Compass integer:         ");SerialASC.println(compassFloat);
-  SerialASC.print("Way point (phpPage)=     ");SerialASC.println(phpPage);
+  //SerialASC.print("Way point =     ");SerialASC.println(waypointID);
   SerialASC.print("distanceMetres=          ");SerialASC.println(distanceMetres);
   SerialASC.println("");
   //SerialASC.print("phpPageInt=          ");SerialASC.println(phpPageInt);
