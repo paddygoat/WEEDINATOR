@@ -468,59 +468,69 @@ void getWaypoint()
 
   digitalWrite(BLUE_LED, HIGH);
 
-  // Issue GET request.  Reply will be a waypoint ID.
-  uint16_t statuscode;
-  uint16_t length;
+  while (true) {
+    // Issue GET request.  Reply will be a waypoint.
+    bool     ok = false;
+    uint16_t statuscode;
+    uint16_t length;
 
-  if (fona.HTTP_GET_start( url, &statuscode, &length )) {
+    if (fona.HTTP_GET_start( url, &statuscode, &length )) {
 
-    char receive[40];
-    Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
+      char receive[40];
+      Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
 
-    // This is blocking, because the complete reply has not arrived yet.
-    DEBUG_PORT.print( F("Raw PHP reply: '") );
-    while (length > 0) {
-      if (fona.available()) {
-        char c = fona.read();
-        if (isprint( c ))
-          receiveChars.write( c ); // add to array
-        showData( &c, 1 );
+      // This is blocking, because the complete reply has not arrived yet.
+      DEBUG_PORT.print( F("Raw PHP reply: '") );
+      while (length > 0) {
+        if (fona.available()) {
+          char c = fona.read();
+          if (isprint( c ))
+            receiveChars.write( c ); // add to array
+          showData( &c, 1 );
 
-        length--;
+          length--;
+        }
+        yield();
       }
-      yield();
+      receiveChars.terminate();
+      DEBUG_PORT.println('\'');
+
+      DEBUG_PORT.print( F("Lat and Lon from database (receive):     ") );
+      showData( receive, receiveChars.numWritten() );
+      DEBUG_PORT.println();
+
+      ok = parseWaypoint( receive, receiveChars.numWritten() );
+
+    } else {
+       DEBUG_PORT.println( F("HTTP GET Failed!") );
     }
-    receiveChars.terminate();
-    DEBUG_PORT.println('\'');
+   
+    DEBUG_PORT.println( F("\n****") );
+    fona.HTTP_GET_end();
 
-    DEBUG_PORT.print( F("Lat and Lon from database (receive):     ") );
-    showData( receive, receiveChars.numWritten() );
-    DEBUG_PORT.println();
+    if (ok)
+      break;
 
-    parseWaypoint( receive, receiveChars.numWritten() );
-
-  } else {
-     DEBUG_PORT.println( F("HTTP GET Failed!") );
+    delay( 2000 );
   }
- 
-  DEBUG_PORT.println( F("\n****") );
-  fona.HTTP_GET_end();
 
   digitalWrite(BLUE_LED, LOW);
 
-  beep(1000);
+  return;
 
 } // getWaypoint
 
 ////////////////////////////////////////////////////////////////////////////
 
-void parseWaypoint( char *ptr, size_t remaining )
+bool parseWaypoint( char *ptr, size_t remaining )
 {
   static const char     LAT_LABEL[] PROGMEM = "LAT";
   static const size_t   LAT_LABEL_LEN       = sizeof(LAT_LABEL)-1;
   static const char     LON_LABEL[] PROGMEM = "LONG";
   static const size_t   LON_LABEL_LEN       = sizeof(LON_LABEL)-1;
                uint32_t latValue, lonValue;
+
+  bool ok = false;
 
   if (remaining > 0) {
     // Skip the first character (what is it?)
@@ -554,6 +564,8 @@ void parseWaypoint( char *ptr, size_t remaining )
 
             updateNavData();
             newMsgA = newMsgB = true;
+            
+            ok = true;
 
           } else {
             DEBUG_PORT.println( F("Invalid longitude") );
@@ -567,6 +579,8 @@ void parseWaypoint( char *ptr, size_t remaining )
   } else {
     DEBUG_PORT.println( F("response too short") );
   }
+
+  return ok;
 
 } // parseWaypoint
 
