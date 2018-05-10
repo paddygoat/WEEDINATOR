@@ -38,6 +38,7 @@ const uint8_t MEGA_I2C_ADDR   = 26;
 
 const uint32_t HEARTBEAT_PERIOD =  200; // ms
 const uint16_t BEEP_FREQUENCY   = 2500; // Hz
+void beep( uint32_t duration, uint16_t freq = BEEP_FREQUENCY ); // forward decl
 
 ////////////////////////////////////////////////
 // Changing one of these flags to false will
@@ -967,12 +968,12 @@ uint32_t beepDuration;
 uint32_t beepStart;
 bool     beeping;
 
-void beep( uint32_t duration )
+void beep( uint32_t duration, uint16_t freq )
 {
   beeping      = true;
   beepStart    = millis();
   beepDuration = duration;
-  tone( SPEAKER, BEEP_FREQUENCY, 0 );   // pin,pitch,duration (forever)
+  tone( SPEAKER, freq, 0 );   // pin,pitch,duration (forever)
 }
 
 void checkBeep()
