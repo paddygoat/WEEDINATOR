@@ -281,20 +281,7 @@ void checkGPS()
     digitalWrite( ORANGE_LED, fix.valid.location );
 
     if (fix.valid.location) {
-      beep(100);
-
-      float range = fix.location.DistanceKm( waypoint );
-      DEBUG_PORT.print( F("Distance km:             ") );
-      DEBUG_PORT.println( range );
-
-      distanceToWaypoint = range * MM_PER_KM;
-      DEBUG_PORT.print( F("Distance mm:             ") );
-      DEBUG_PORT.println( distanceToWaypoint );
-
-      bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
-      DEBUG_PORT.print( F("Bearing:         ") );
-      DEBUG_PORT.println( bearingToWaypoint );
-      DEBUG_PORT.println();
+      beep( 100 );
 
       //DEBUG_PORT.print( F("Current GPS latitude:  ") );
       //DEBUG_PORT.println( fix.location.lat() );
@@ -821,7 +808,25 @@ void nextNavState()
 void updateNavData()
 {
   switch (navDataState) {
-    case BEARING_DIST_HEAD: compileBearDistHeadMsg(); break;
+    case BEARING_DIST_HEAD:
+      {
+        float range = fix.location.DistanceKm( waypoint );
+        DEBUG_PORT.print( F("Distance km:             ") );
+        DEBUG_PORT.println( range );
+
+        distanceToWaypoint = range * MM_PER_KM;
+        DEBUG_PORT.print( F("Distance mm:             ") );
+        DEBUG_PORT.println( distanceToWaypoint );
+
+        bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
+        DEBUG_PORT.print( F("Bearing:         ") );
+        DEBUG_PORT.println( bearingToWaypoint );
+        DEBUG_PORT.println();
+
+        compileBearDistHeadMsg();
+      }
+      break;
+ 
     case LAT_LON          : compileLatLonMsg      (); break;
   }
 
