@@ -1127,7 +1127,7 @@ unsigned long printTftText()
   tft.setCursor(0, 160);
   tft.println("Waypoint:            ");
   tft.setCursor(110, 160);
-  tft.println(phpPage);
+  //tft.println(waypointID);
   rectangle1 ();
   tft.setCursor(0, 190);
   tft.println("Steering Val:     ");
