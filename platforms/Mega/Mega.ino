@@ -118,19 +118,35 @@ long newSize;
 
 ////////////////////////////////////////////////////////////////////////////
 
+enum setupState_t { BEFORE_SETUP, SETUP_IN_PROGRESS, SETUP_COMPLETED };
+setupState_t setupState = BEFORE_SETUP;
+
 void setup()
 {
+  pinMode(BLUE_LED,OUTPUT);
+  pinMode(ORANGE_LED,OUTPUT);
+  pinMode(I2C_REQUEST,OUTPUT);
+  pinMode(I2C_RECEIVE,OUTPUT);
+  pinMode(USING_GPS_HEADING,OUTPUT);
+  pinMode(51,OUTPUT);
+  pinMode(53,OUTPUT);
+
+  digitalWrite(USING_GPS_HEADING,HIGH);
+  digitalWrite(PIXY_PROCESSING,HIGH);
+  digitalWrite(53,LOW);
+
   DEBUG_PORT.begin( DEBUG_BAUD );
   DEBUG_PORT.println( F("Mega") );
 
   gpsPort.begin( GPS_BAUD );
+
+  setupState = SETUP_IN_PROGRESS;
 
   if (usePixy)
     pixy.init();
 
   if (useI2C) {
     Wire.begin( MEGA_I2C_ADDR );
-    Wire.onReceive(receiveNewWaypoint); // register event
     Wire.onRequest(sendNavData); // register event
   }
 
@@ -145,38 +161,30 @@ void setup()
     }
   }
 
-  pinMode(BLUE_LED,OUTPUT);
-  pinMode(ORANGE_LED,OUTPUT);
-  pinMode(I2C_REQUEST,OUTPUT);
-  pinMode(I2C_RECEIVE,OUTPUT);
-  pinMode(USING_GPS_HEADING,OUTPUT);
-  pinMode(51,OUTPUT);
-  pinMode(53,OUTPUT);
-
-  digitalWrite(USING_GPS_HEADING,HIGH);
-  digitalWrite(PIXY_PROCESSING,HIGH);
-  digitalWrite(53,LOW);
-
-  beep( 1000 );
-
-  delay(1000);
-  digitalWrite(PIXY_PROCESSING,LOW);
-  digitalWrite(USING_GPS_HEADING,LOW);
-
   initFona();
 
   getWaypoint();
+  
+  digitalWrite(PIXY_PROCESSING,LOW);
+  digitalWrite(USING_GPS_HEADING,LOW);
+
+  setupState = SETUP_COMPLETED;
 
 } // setup
 
-
 void yield()
 {
-  heartbeat    ();
-  checkBeep    ();
-  checkGPS     ();
-  checkNavData ();
-  checkConsole ();
+  checkConsole();
+
+  if (setupState > BEFORE_SETUP) {
+    heartbeat();
+    checkBeep();
+    checkGPS ();
+
+    if (setupState >= SETUP_COMPLETED) {
+      checkNavData();
+    }
+  }
 
 } // yield
 
