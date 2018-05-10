@@ -118,38 +118,6 @@ long newSize;
 
 ////////////////////////////////////////////////////////////////////////////
 
-class ServoLoop
-{
-public:
-  ServoLoop(int32_t pgain, int32_t dgain);
-
-  void update(int32_t error);
-
-  int32_t m_pos;
-  int32_t m_prevError;
-  int32_t m_pgain;
-  int32_t m_dgain;
-};
-
-ServoLoop panLoop(300, 500);
-ServoLoop tiltLoop(500, 700);
-
-ServoLoop::ServoLoop(int32_t pgain, int32_t dgain)
-{
-  m_pos       = PIXY_RCS_CENTER_POS;
-  m_pgain     = pgain;
-  m_dgain     = dgain;
-  m_prevError = 0x80000000L;
-}
-
-void ServoLoop::update(int32_t error)
-{
-  long int vel;
-  char buf[32];
-}
-
-////////////////////////////////////////////////////////////////////////////
-
 void setup()
 {
   DEBUG_PORT.begin( DEBUG_BAUD );
@@ -370,10 +338,8 @@ void pixyModule()
   {
     digitalWrite(PIXY_PROCESSING,HIGH);
     int32_t panError  = X_CENTER - pixy.blocks[0].x;
-    panLoop.update(panError);
 
     int32_t tiltError = pixy.blocks[0].y - Y_CENTER;
-    tiltLoop.update(tiltError);
 
     blockCount = blocks;
 
