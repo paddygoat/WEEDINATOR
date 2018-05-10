@@ -715,7 +715,6 @@ int aa=0;
 char distanceCharacter[40];
 String cmd = "S"; 
 int emicBearing=0;
-char phpPage[2] = "1";
 unsigned long previousMillis1Core3 = 0;
 unsigned long previousMillis2Core3 = 0;
 unsigned long previousMillis3Core3 = 0;
@@ -756,9 +755,6 @@ void setup2()
   tft.setTextSize(4);
   tft.setCursor(0, 20);
   tft.println("WEEDINATOR");
-  Wire.beginTransmission(26); // transmit to FONA controller.
-  Wire.write(phpPage); 
-  Wire.endTransmission();    // stop transmitting
   tone(2,1000,1000);   // pin,pitch,duration
   delay(1000);
   noTone(2);
@@ -830,38 +826,6 @@ void loop2()
       emicSpeech1();
     }
     previousMillis1Core3=currentMillisCore3;                          // this is the only previousMillis reset!
-  }
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-  if ((millisCalc4 > 5000)&&(millisCalc4 < 5200))    // timer4
-  {
-    SerialASC.println("Request new PHP page via Fona:");
-    Wire.beginTransmission(26); // transmit to device #26 FONA Mega.
-    Wire.write(phpPage); 
-    Wire.endTransmission();    // stop transmitting
-  }
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-  if((distanceMetres<500)&&(phpPageInt<11)&&(phpPageInt==previousPhpPageInt))
-  {
-    tone(2,1000,1000);   // pin,pitch,duration
-    delay(1000);
-    noTone(2);
-    phpPageInt++;
-    phpPageString = "";
-    phpPageString = inititiator + phpPageInt;      // This is for Emic speech.
-    phpPage[0] = phpPageString[0];      // Character phpPage, which gets transmitted to FONA.
-  }
-  if((distanceMetres>500)&&(phpPageInt<11)&&(phpPageInt>previousPhpPageInt))
-  {
-    previousPhpPageInt = phpPageInt;
-  }
-  if(distanceMetres!=prevDistMetres)        // Make a beep if GNSS data is updated.
-  {
-    prevDistMetres = distanceMetres;
-    tone(2,2000,100);   // pin,pitch,duration
-    digitalWrite(39,HIGH); // Orange LED
-    delay(100);
-    digitalWrite(39,LOW); 
-    noTone(2);
   }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 
   i=0;
