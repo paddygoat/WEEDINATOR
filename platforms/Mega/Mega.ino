@@ -311,11 +311,6 @@ void checkGPS()
     }
 
     digitalWrite( USING_GPS_HEADING, fix.valid.heading );
-
-    if (fix.valid.heading) {
-      DEBUG_PORT.print( F("heading:              ") );
-      DEBUG_PORT.println( fix.heading() );
-    }
   }
 } // checkGPS
 
@@ -788,7 +783,6 @@ void checkNavData()
   if (navDataSent) {
     // compile the next message
     nextNavState();
-    updateNavData();
     navDataSent = false;
   }
 }
@@ -803,32 +797,32 @@ void nextNavState()
   if (navDataState == LAST_NAV_STATE)
     navDataState = FIRST_NAV_STATE;
 
+  switch (navDataState) {
+     case BEARING_DIST_HEAD: compileBearDistHeadMsg(); break;
+     case LAT_LON          : compileLatLonMsg      (); break;
+  }
+
 } // nextNavState
 
 void updateNavData()
 {
-  switch (navDataState) {
-    case BEARING_DIST_HEAD:
-      {
-        float range = fix.location.DistanceKm( waypoint );
-        DEBUG_PORT.print( F("Distance km:             ") );
-        DEBUG_PORT.println( range );
+  float range = fix.location.DistanceKm( waypoint );
+  DEBUG_PORT.print( F("Distance km:     ") );
+  DEBUG_PORT.println( range );
 
-        distanceToWaypoint = range * MM_PER_KM;
-        DEBUG_PORT.print( F("Distance mm:             ") );
-        DEBUG_PORT.println( distanceToWaypoint );
+  distanceToWaypoint = range * MM_PER_KM;
+  DEBUG_PORT.print( F("Distance mm:     ") );
+  DEBUG_PORT.println( distanceToWaypoint );
 
-        bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
-        DEBUG_PORT.print( F("Bearing:         ") );
-        DEBUG_PORT.println( bearingToWaypoint );
-        DEBUG_PORT.println();
+  bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
+  DEBUG_PORT.print( F("Bearing:         ") );
+  DEBUG_PORT.println( bearingToWaypoint );
 
-        compileBearDistHeadMsg();
-      }
-      break;
- 
-    case LAT_LON          : compileLatLonMsg      (); break;
-  }
+  DEBUG_PORT.print( F("Heading:         ") );
+  if (fix.valid.heading)
+      DEBUG_PORT.println( fix.heading() );
+
+  DEBUG_PORT.println();
 
 } // updateNavData
 
