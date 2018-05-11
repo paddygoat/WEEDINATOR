@@ -83,7 +83,7 @@ else
 {
   actuallySteering = LOW;  
 }
-if ((finalDriveValue<600)&&(finalDriveValue>400))  //Stationary
+if ((finalDriveValue<550)&&(finalDriveValue>450))  //Stationary
 {
   stationary=HIGH;
 }
@@ -91,11 +91,11 @@ else
 {
   stationary=LOW;
 }
-if (finalDriveValue>=600)  //Backwards.
+if (finalDriveValue>=550)  //Backwards.
 {
   backwards = HIGH; forwards = LOW;
-  intervalThree = (600000/finalDriveValue)+100; // 140 is max speed.
-  intervalFour =  (600000/finalDriveValue)+100; // 140 is max speed.
+  intervalThree = (400000/finalDriveValue)-100; // 140 is max speed.
+  intervalFour =  (400000/finalDriveValue)-100; // 140 is max speed.
   speedDifferential();
   torqueDifferential();
   digitalWrite(10,HIGH);
@@ -111,11 +111,11 @@ if (finalDriveValue>=600)  //Backwards.
     digitalWrite(11,ledStateFour); // Drive motor step
   }
 }
-if (finalDriveValue<400)//Forwards.
+if (finalDriveValue<450)//Forwards.
 {
   backwards = LOW; forwards = HIGH;
-  intervalThree = (finalDriveValue*2)+300; // 140 is max speed. Right hand wheel.
-  intervalFour = (finalDriveValue*2)+300; // 140 is max speed.
+  intervalThree = (finalDriveValue*1)+100; // 140 is max speed. Right hand wheel.
+  intervalFour = (finalDriveValue*1)+100; // 140 is max speed.
   speedDifferential();
   torqueDifferential();
   //There are two main states that the steering is in 1) static at any angle and 2) moving to new angle. The main calculation is
@@ -498,7 +498,7 @@ EndOfInitialised_CPU1_Variables
 void setup1() 
 {
   pinMode(23,INPUT);
-  intervalFive = 1000 / ACFrequency; 
+  intervalFive = 1000 / ACFrequency; // Milliseconds.
 }
 void loop1() 
 {
@@ -507,7 +507,7 @@ void loop1()
   while (ic < intervalFive)   // AC 50 hertz is equivalent to 20 ms per AC cycle
   {
     ic++;
-    delay(1);                 // Capture data over one complete AC cycle.
+    delayMicroseconds(1000);                 // Capture data over one complete AC cycle.
     currentSensorValueFive = analogRead(A3);
     currentSensorValueSix = analogRead(A2);
     if(currentSensorValueFive > maxCurrentValueFive)
