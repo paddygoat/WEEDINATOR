@@ -1,5 +1,5 @@
 # WEEDINATOR
-Code andfor microprocessor modules controlling the WEEDINATOR agricultural robot and manufacturing files.
+Code for microprocessor modules controlling the WEEDINATOR agricultural robot and manufacturing files.
 
 The main processor is a 3 core TC275 running at 200 MHz whose main function is to control the various motors with step pulses and direction HIGH / LOW. On the I2C bus it is the MASTER.
 
