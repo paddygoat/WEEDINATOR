@@ -6,6 +6,7 @@
 #include "Mega.h"
 #include "speaker.h"
 #include "navdata.h"
+#include "waypoint.h"
 
 NMEAGPS gps;
 gps_fix fix;
@@ -56,6 +57,11 @@ void checkGPS()
       }
 
       updateNavData();
+      
+      if (distanceToWaypoint < WAYPOINT_DISTANCE_THRESHOLD) {
+        beep( 500, 1000 ); // duration, pitch
+        waypoint_t::next();
+      }
 
     } else {
       DEBUG_PORT.write( '.' );

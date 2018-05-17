@@ -1,7 +1,9 @@
 #include "console.h"
 
 #include "Mega.h"
+#include "FONA.h"
 #include "navdata.h"
+#include "waypoint.h"
 
 #include <Arduino.h>
 
@@ -37,12 +39,17 @@ void checkConsole()
 
       if (line[0] == 'w') {
         // simulate going to a new waypoint id
-        distanceToWaypoint = 0;
+        waypoint_t::next();
 
       } else if ((line[0] == 'p') and (lineLen > 1)) {
         // simulate receiving a response to the GET request
-        parseWaypoint( &line[1], lineLen-1 );
-        gotConsolePHP = true;
+        waypoint_t nextWaypoint;
+        if (parse( nextWaypoint, &line[1], lineLen-1 )) {
+          static uint16_t simulatedID = 0;
+          nextWaypoint.id = ++simulatedID;
+          waypoint_t::track.write( nextWaypoint );
+          gotConsolePHP = true;
+        }
 
       } else if (line[0] == 's') {
         // simulate sending messages to the TC275

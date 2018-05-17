@@ -9,6 +9,7 @@
 #include "pixy.h"
 #include "speaker.h"
 #include "util.h"
+#include "waypoint.h"
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +43,10 @@ void setup()
   if (useFona)
     initFONA();
 
-  getWaypoint();
+  // Get the initial waypoint into track
+  while (!waypoint_t::track.available())
+    loadWaypoints();
+  waypoint_t::next();
   
   setupState = SETUP_COMPLETED;
 
@@ -73,6 +77,6 @@ void loop()
 {
   yield        ();
   pixyModule   ();
-  checkWaypoint();
+  loadWaypoints();
 
 } // loop

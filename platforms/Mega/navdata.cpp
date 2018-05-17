@@ -8,12 +8,10 @@
 #include "GPS.h"
 #include "units.h"
 #include "util.h"
+#include "waypoint.h"
 
-int waypointID       = 1;
 float bearingToWaypoint;  // degrees
 float distanceToWaypoint; // mm
-
-NeoGPS::Location_t waypoint( 532558000L, -43114000L ); // Llangefni
 
 static bool newMsgA = false;
 static bool newMsgB = false;
@@ -34,69 +32,6 @@ void initNavData()
     Wire.onRequest(sendNavData); // register event
   }
 } // initNavData
-
-////////////////////////////////////////////////////////////////////////////
-
-bool parseWaypoint( char *ptr, size_t remaining )
-{
-  static const char     LAT_LABEL[] PROGMEM = "LAT";
-  static const size_t   LAT_LABEL_LEN       = sizeof(LAT_LABEL)-1;
-  static const char     LON_LABEL[] PROGMEM = "LONG";
-  static const size_t   LON_LABEL_LEN       = sizeof(LON_LABEL)-1;
-               uint32_t latValue, lonValue;
-
-  bool ok = false;
-
-  if (remaining > 0) {
-    // Skip the first character (what is it?)
-    ptr++;
-    remaining--;
-
-    if (findText( LAT_LABEL, LAT_LABEL_LEN, ptr, remaining )) {
-
-      if (parseValue( ptr, remaining, latValue )) {
-
-        if (findText( LON_LABEL, LON_LABEL_LEN, ptr, remaining )) {
-
-          if (parseValue( ptr, remaining, lonValue )) {
-
-            // Set the new waypoint location
-            waypoint.lat( latValue );
-            waypoint.lon( lonValue );
-
-            DEBUG_PORT.print  ( F("Location from Fona:  ") );
-            DEBUG_PORT.print  ( waypoint.lat() );
-            DEBUG_PORT.print  ( ',' );
-            DEBUG_PORT.println( waypoint.lon() );
-
-            //  Make sure we used all the characters
-            if (remaining > 0) {
-              DEBUG_PORT.print( remaining );
-              DEBUG_PORT.print( F(" extra characters after lonValue: '") );
-              showData( ptr, remaining );
-              DEBUG_PORT.println('\'');
-            }
-
-            updateNavData();
-            
-            ok = true;
-
-          } else {
-            DEBUG_PORT.println( F("Invalid longitude") );
-          }
-        }
-
-      } else {
-        DEBUG_PORT.println( F("Invalid latitude") );
-      }
-    }
-  } else {
-    DEBUG_PORT.println( F("response too short") );
-  }
-
-  return ok;
-
-} // parseWaypoint
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -154,7 +89,7 @@ void updateNavData()
 {
   newMsgA = newMsgB = true;
 
-  float range = fix.location.DistanceKm( waypoint );
+  float range = fix.location.DistanceKm( waypoint_t::current.location );
   DEBUG_PORT.print( F("Distance km:     ") );
   DEBUG_PORT.println( range );
 
@@ -162,7 +97,7 @@ void updateNavData()
   DEBUG_PORT.print( F("Distance mm:     ") );
   DEBUG_PORT.println( distanceToWaypoint );
 
-  bearingToWaypoint = fix.location.BearingToDegrees( waypoint );
+  bearingToWaypoint = fix.location.BearingToDegrees( waypoint_t::current.location );
   DEBUG_PORT.print( F("Bearing:         ") );
   DEBUG_PORT.println( bearingToWaypoint );
 

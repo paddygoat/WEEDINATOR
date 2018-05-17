@@ -5,6 +5,7 @@
 #include "navdata.h"
 #include "speaker.h"
 #include "util.h"
+#include "waypoint.h"
 
 #include <NeoPrintToRAM.h>
 
@@ -77,48 +78,46 @@ void initFONA()
 ////////////////////////////////////////////////////////////////////////////
 
 static       uint32_t lastPHPcheck         = 0;
-static const uint32_t MIN_PHP_CHECK_PERIOD = 1000;
+static const uint32_t MIN_PHP_CHECK_PERIOD = 3000;
+static       uint16_t lastWaypointLoaded   = 0;
 
-void checkWaypoint()
+void loadWaypoints()
 {
   // Don't try to get waypoints too quickly
-  if (millis() - lastPHPcheck >= MIN_PHP_CHECK_PERIOD) {
+  if ((millis() - lastPHPcheck >= MIN_PHP_CHECK_PERIOD) &&
+      (lastWaypointLoaded      <  LAST_WAYPOINT_ID    ) &&
+      waypoint_t::track.room()) {
 
-    if ((waypointID < LAST_WAYPOINT_ID) &&
-        (distanceToWaypoint < WAYPOINT_DISTANCE_THRESHOLD)) {
+    // Load another waypoint into the track
+    DEBUG_PORT.print( F("Loading Waypoint ID ") );
+    DEBUG_PORT.println( lastWaypointLoaded+1 );
 
-      beep( 500, 1000 ); // duration, pitch
-
-      // Get the next waypoint
-      waypointID++;
-      DEBUG_PORT.print( F("New Waypoint ID ") );
-      DEBUG_PORT.println( waypointID );
-
-      // Yes, get it now.
-      getWaypoint();
-      lastPHPcheck = millis();
-    }
+    if (getWaypoint( lastWaypointLoaded+1 ))
+      lastWaypointLoaded++;
+    lastPHPcheck = millis();
   }
 
-} // checkWaypoint
+} // loadWaypoints
 
 ///////////////////////////////////////////////////////////////////////
 
-void getWaypoint()
+bool getWaypoint( uint16_t id )
 {
+  bool idOK = false;
+
   DEBUG_PORT.print( F("Select php page from TC275:        ") );
-  DEBUG_PORT.println( waypointID );
+  DEBUG_PORT.println( id );
 
   // Builds the url character array:
   char url[60];
   Neo::PrintToRAM urlChars( url, sizeof(url) );
   urlChars.print( CF(webAddress) );
-  urlChars.print( waypointID );
+  urlChars.print( id );
   urlChars.print( CF(dotPhp) );
   urlChars.terminate(); // add NUL terminator to this C string
 
   //urlChars.print( F("bollox") );
-  //urlChars.print( waypointID );
+  //urlChars.print( id );
   //urlChars.print( F(".php") );
   //urlChars.terminate();
 
@@ -129,19 +128,20 @@ void getWaypoint()
   if (not useFona) {
     if (useConsole) {
       getConsolePHP();
+      return true;
     }
-    return;
+    return false;
   }
 
   digitalWrite(BLUE_LED, HIGH);
 
   while (true) {
     // Issue GET request.  Reply will be a waypoint.
-    bool     ok = false;
     uint16_t statuscode;
     uint16_t length;
 
-    if (fona.HTTP_GET_start( url, &statuscode, &length )) {
+    bool getStarted = fona.HTTP_GET_start( url, &statuscode, &length );
+    if (getStarted) {
 
       char receive[40];
       Neo::PrintToRAM receiveChars( receive, sizeof(receive) );
@@ -166,7 +166,12 @@ void getWaypoint()
       showData( receive, receiveChars.numWritten() );
       DEBUG_PORT.println();
 
-      ok = parseWaypoint( receive, receiveChars.numWritten() );
+      waypoint_t nextWaypoint;
+      idOK = parse( nextWaypoint, receive, receiveChars.numWritten() );
+      if (idOK) {
+        nextWaypoint.id = id;
+        waypoint_t::track.write( nextWaypoint );
+      }
 
     } else {
        DEBUG_PORT.println( F("HTTP GET Failed!") );
@@ -175,7 +180,7 @@ void getWaypoint()
     DEBUG_PORT.println( F("\n****") );
     fona.HTTP_GET_end();
 
-    if (ok)
+    if (getStarted)
       break;
 
     delay( 2000 );
@@ -183,9 +188,70 @@ void getWaypoint()
 
   digitalWrite(BLUE_LED, LOW);
 
-  return;
+  return idOK;
 
 } // getWaypoint
+
+////////////////////////////////////////////////////////////////////////////
+
+bool parse( waypoint_t &waypoint, char *ptr, size_t remaining )
+{
+  static const char     LAT_LABEL[] PROGMEM = "LAT";
+  static const size_t   LAT_LABEL_LEN       = sizeof(LAT_LABEL)-1;
+  static const char     LON_LABEL[] PROGMEM = "LONG";
+  static const size_t   LON_LABEL_LEN       = sizeof(LON_LABEL)-1;
+               uint32_t latValue, lonValue;
+
+  bool ok = false;
+
+  if (remaining > 0) {
+    // Skip the first character (what is it?)
+    ptr++;
+    remaining--;
+
+    if (findText( LAT_LABEL, LAT_LABEL_LEN, ptr, remaining )) {
+
+      if (parseValue( ptr, remaining, latValue )) {
+
+        if (findText( LON_LABEL, LON_LABEL_LEN, ptr, remaining )) {
+
+          if (parseValue( ptr, remaining, lonValue )) {
+
+            // Set the new waypoint location
+            waypoint.location.lat( latValue );
+            waypoint.location.lon( lonValue );
+
+            DEBUG_PORT.print  ( F("Location from Fona:  ") );
+            DEBUG_PORT.print  ( waypoint.location.lat() );
+            DEBUG_PORT.print  ( ',' );
+            DEBUG_PORT.println( waypoint.location.lon() );
+
+            //  Make sure we used all the characters
+            if (remaining > 0) {
+              DEBUG_PORT.print( remaining );
+              DEBUG_PORT.print( F(" extra characters after lonValue: '") );
+              showData( ptr, remaining );
+              DEBUG_PORT.println('\'');
+            }
+            
+            ok = true;
+
+          } else {
+            DEBUG_PORT.println( F("Invalid longitude") );
+          }
+        }
+
+      } else {
+        DEBUG_PORT.println( F("Invalid latitude") );
+      }
+    }
+  } else {
+    DEBUG_PORT.println( F("response too short") );
+  }
+
+  return ok;
+
+} // parse
 
 ///////////////////////////////////////////////////////////////////////
 
