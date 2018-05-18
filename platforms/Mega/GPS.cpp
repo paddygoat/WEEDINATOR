@@ -59,7 +59,7 @@ void checkGPS()
       updateNavData();
       
       if (distanceToWaypoint < WAYPOINT_DISTANCE_THRESHOLD) {
-        beep( 500, 1000 ); // duration, pitch
+        beep( 500, 2500 ); // duration, pitch
         waypoint_t::next();
       }
 
