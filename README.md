@@ -1,3 +1,5 @@
+<img src="https://github.com/paddygoat/WEEDINATOR/blob/master/images/WEEDINATOR%202018.png" />
+
 # WEEDINATOR
 Code for microprocessor modules controlling the WEEDINATOR agricultural robot and manufacturing files.  All code compiles using the Arduino IDE and is in .ino format.
 
