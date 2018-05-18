@@ -3,14 +3,18 @@ Code for microprocessor modules controlling the WEEDINATOR agricultural robot an
 
 ## Processors
 
-The main processor is a 3 core TC275 running at 200 MHz whose main function is to control the various motors with step pulses and direction HIGH / LOW. On the I2C bus it is the MASTER.
+#### Primary
 
-The second processor is a MEGA 2560 which is used mainly for good compatibility with existing arduino modules and code. Its function is to recieve data from 
+A 3 core TC275 running at 200 MHz controls the various motors with step pulses and direction HIGH / LOW. On the I2C bus it is the MASTER.
 
-* GNSS module (Ublox C94 M8M)
-* FONA GPRS module
-* [PIXY](http://cmucam.org/projects/cmucam5/wiki) object recognition camera
-* Digital compass (9DOF Razor IMU MO)<a href="#1"><sup>1</sup></a>
+#### Secondary
+
+A MEGA 2560 is used mainly for good compatibility with existing arduino modules and code. Its function is to receive data from 
+
+* GNSS module ([Ublox C94 NEO-M8M](https://www.u-blox.com/en/product/neo-m8-series) Base & Rover)
+* GSM module ([Adafruit FONA 800H GPRS](https://www.adafruit.com/product/1946))
+* Object recognition camera ([PIXY](http://cmucam.org/projects/cmucam5/wiki) )
+* Digital compass ([Sparkfun 9DOF Razor IMU MO](https://www.sparkfun.com/products/14001), see [Issue #10](https://github.com/paddygoat/WEEDINATOR/issues/10))
   
 ## Steering
 
@@ -18,8 +22,3 @@ The second processor is a MEGA 2560 which is used mainly for good compatibility 
 * `Bearing` is the direction that it needs to go in.
 
 Subtracting one from the other gives the direction and amount that the steering needs to turn.
-
-
-
-<hr>
-<a name="1"><sup>1</sup></a> The compass has issues with revolving magnets and large pieces of moving steel so may be of limited use. Currently the default is that the machine drives directly forwards which is overidden when it recieves data through fix.heading() which itself is overridden if the camera recognises a pre-programmed object.
