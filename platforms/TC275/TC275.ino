@@ -817,7 +817,7 @@ void loop2()
      previousMillis2Core3=currentMillisCore3;         
   }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if (millisCalc1 >= 30000)                           // timer  .... 30,000
+  if (millisCalc1 >= 10000)                           // timer  .... 30,000
   {  
     //SerialASC.println("Emic Speech SHOULD be activated ");
     while (Serial1.available()) 
@@ -1272,6 +1272,7 @@ void emicSpeech1()
   + text3 + emicBearing/100 + " .. degrees .. " + text5 + makeTurnValue + " .. degrees .. End of message .. ";
   text6 = "[:phone arpa speak on][:rate 190][:n0][ GAA<400,12>DD<200,15>B<200,10>LLEH<200,19>EH<500,22>S<200,18>AH<100,18>MEH<200,16>K<100,13>AH<200,12>][:n0]";
   //SerialASC.println(text4);
-  Serial1.print(cmd + text4 + "\n");
+  //Serial1.print(cmd + text4 + "\n");
+  Serial1.print(cmd + "Distance to next waypoint is" + distanceMetres + " .. milli metres .. " + "\n");
   ; 
 }
