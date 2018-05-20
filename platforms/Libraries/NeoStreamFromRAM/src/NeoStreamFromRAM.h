@@ -46,6 +46,14 @@ class StreamFromRAM : public PrintToRAM
         return -1;
     }
 
+    size_t readBytes( uint8_t *buffer, size_t length )
+    {
+      size_t count = 0;
+      while ((length-- > 0) and available())
+        buffer[ count++ ] = read();
+      return count;
+    }
+
     virtual int peek()
     {
       if (_size > _count)

@@ -718,7 +718,7 @@ void setup2()
   initNavData();
 
   DEBUG_PORT.begin( DEBUG_BAUD );
-  DEBUG_PORT.println("Ready to test");
+  DEBUG_PORT.println("TC275");
 
   if (useTFT) {
     tft.begin();
@@ -905,10 +905,11 @@ void loop2()
       uint8_t example[] = 
         { 0xB0, 0x30, 0xBE, 0x1F, // lat 532558000
           0xF0, 0x21, 0x6E, 0xFD, // lon -43114000
-          0x80, 0x96, 0x98, 0x00, // dist 10000000mm
           0x7B, 0x00,             // waypoint 123
+          0x80, 0x96, 0x98, 0x00, // dist 10000000mm
           0x39, 0x30,             // bearing 123.45
-          0x85, 0x1A };
+          0x85, 0x1A,             // heading 67.89
+        };
       count = sizeof(example);
       memcpy( message, example, count );
     }
