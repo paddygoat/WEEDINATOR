@@ -2,8 +2,7 @@
 
 #include "Mega.h"
 #include "compass.h"
-
-extern      float bearingToWaypoint;  // degrees
+#include "navdata.h"
 
 #include <Arduino.h>
 #include <Pixy.h>
@@ -79,7 +78,7 @@ void pixyModule()
       //readCompass();
     }
 
-    compass = bearingToWaypoint + panError*0.2; // <-- OK???
+    compass = navData.bearing() + panError*0.2; // <-- OK???
 
   } else {
     // No blocks

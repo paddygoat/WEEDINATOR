@@ -10,16 +10,10 @@
 #include "util.h"
 #include "waypoint.h"
 
-float bearingToWaypoint;  // degrees
-float distanceToWaypoint; // mm
+navData_t navData;
 
-static bool newMsgA = false;
-static bool newMsgB = false;
-
-static void nextNavState();
-static void compileBearDistHeadMsg();
-static void compileLatLonMsg();
-
+const size_t navData_t::MSG_SIZE = sizeof( navData_t );
+ 
 ////////////////////////////////////////////////////////////////////////////
 
 void initNavData()
@@ -31,25 +25,27 @@ void initNavData()
     Wire.begin( MEGA_I2C_ADDR );
     Wire.onRequest(sendNavData); // register event
   }
+
+  DEBUG_PORT.print( F("navData message size: ") );
+  DEBUG_PORT.println( navData_t::MSG_SIZE );
+
 } // initNavData
 
 ////////////////////////////////////////////////////////////////////////////
 
-         static char navData[36];
-volatile static bool navDataSent = false;
+static uint8_t message[ navData_t::MSG_SIZE ];
 
 void sendNavData()
 {
   digitalWrite(I2C_REQUEST,HIGH);
 
   if (useI2C) {
-    Wire.write(navData);     // as expected by master
+    Wire.write( message, sizeof(navData) );
   } else {
     DEBUG_PORT.print( F("TC275 --> ") );
-    showData( navData, strlen(navData) );
+    showData( &message[0], sizeof(message) );
+    DEBUG_PORT.println();
   }
-
-  navDataSent = true;
 
   digitalWrite(I2C_REQUEST,LOW);
 
@@ -57,53 +53,41 @@ void sendNavData()
 
 ////////////////////////////////////////////////////////////////////////////
 
-void checkNavData()
-{
-  if (navDataSent) {
-    // compile the next message
-    nextNavState();
-    navDataSent = false;
-  }
-}
-
-enum     navDataState_t { BEARING_DIST_HEAD, LAT_LON, LAST_NAV_STATE };
-const    navDataState_t FIRST_NAV_STATE = (navDataState_t) 0;
-volatile navDataState_t navDataState;
-
-static void nextNavState()
-{
-  navDataState = (navDataState_t) (navDataState + 1);
-  if (navDataState == LAST_NAV_STATE)
-    navDataState = FIRST_NAV_STATE;
-
-  switch (navDataState) {
-     case BEARING_DIST_HEAD: compileBearDistHeadMsg(); break;
-     case LAT_LON          : compileLatLonMsg      (); break;
-  }
-
-} // nextNavState
-
-////////////////////////////////////////////////////////////////////////////
-
 void updateNavData()
 {
-  newMsgA = newMsgB = true;
+  navData.waypointID( waypoint_t::current.id );
 
-  float range = fix.location.DistanceKm( waypoint_t::current.location );
-  DEBUG_PORT.print( F("Distance km:     ") );
-  DEBUG_PORT.println( range );
+  if (fix.valid.location) {
+    navData.location( fix.location );
+  } else {
+    NeoGPS::Location_t nowhere( 0L, 0L );
+    navData.location( nowhere );
+  }
+  
+  if (fix.valid.location and (navData.waypointID() > 0)) {
+    float distKm = fix.location.DistanceKm( waypoint_t::current.location );
+    navData.distance( distKm * M_PER_KM );
+    navData.bearing ( fix.location.BearingToDegrees( waypoint_t::current.location ) );
+    if (fix.valid.heading)
+      navData.heading( fix.heading() );     // GPS direction of travel
+    else
+      navData.heading( navData.bearing() ); // unknown heading, drive straight
+  } else {
+    navData.distance( WAYPOINT_FAR_AWAY );
+    navData.bearing ( 0.0 );
+    navData.heading ( 0.0 );
+  }
 
-  distanceToWaypoint = range * MM_PER_KM;
-  DEBUG_PORT.print( F("Distance mm:     ") );
-  DEBUG_PORT.println( distanceToWaypoint );
+  navData.printTo( message, sizeof(message) );
 
-  bearingToWaypoint = fix.location.BearingToDegrees( waypoint_t::current.location );
+  DEBUG_PORT.print( F("Distance meters: ") );
+  DEBUG_PORT.println( navData.distance() );
+
   DEBUG_PORT.print( F("Bearing:         ") );
-  DEBUG_PORT.println( bearingToWaypoint );
+  DEBUG_PORT.println( navData.bearing() );
 
   DEBUG_PORT.print( F("Heading:         ") );
-  if (fix.valid.heading)
-      DEBUG_PORT.println( fix.heading() );
+  DEBUG_PORT.println( navData.heading() );
 
   DEBUG_PORT.println();
 
@@ -111,55 +95,65 @@ void updateNavData()
 
 ////////////////////////////////////////////////////////////////////////////
 
-static void compileBearDistHeadMsg()
+void navData_t::printTo( uint8_t *bytes, size_t len )
 {
-  Neo::PrintToRAM msg( navData, sizeof(navData) );
-
-  // Prevent sendNavData from getting the first half of the old
-  //   response and the second half of the new response.
-  noInterrupts();
-    msg.print( F("BEAR") );
-    msg.print( (int) (bearingToWaypoint * 100.0) );
-    msg.print( F("DIST") );
-    msg.print( (long) distanceToWaypoint );
-    msg.print( F("HEAD") );
-    if (fix.valid.heading)
-      msg.print( fix.heading() );
-    msg.terminate();
-  interrupts();
-
-  if (newMsgA) {
-    newMsgA = false;
-    DEBUG_PORT.print( F("msg A to send:  ") );
-    DEBUG_PORT.println( navData );
+  if (len != MSG_SIZE) {
+    static bool warningPrinted = false;
+    if (not warningPrinted) {
+      DEBUG_PORT.print( F("navData::printTo buffer size ") );
+      DEBUG_PORT.print( len );
+      DEBUG_PORT.print( F(" not the expected size ") );
+      DEBUG_PORT.println( MSG_SIZE );
+      warningPrinted = true;
+    }
   } else {
-    DEBUG_PORT.print( 'A' );
-  }
+    // Prevent sendNavData from getting the first half of the old
+    //   response and the second half of the new message.
+    noInterrupts();
+      memcpy( bytes, this, MSG_SIZE );
+    interrupts();
 
-} // compileBearDistHeadMsg
+    DEBUG_PORT.print( F("msg to send :  ") );
+    showData( bytes, len );
+    DEBUG_PORT.println();
+  }
+} // printTo
 
 ////////////////////////////////////////////////////////////////////////////
 
-static void compileLatLonMsg()
+void navData_t::readFrom( uint8_t *bytes, size_t len )
 {
-  Neo::PrintToRAM msg( navData, sizeof(navData) );
-
-  // Prevent sendNavData from getting the first half of the old
-  //   response and the second half of the new response.
-  noInterrupts();
-    msg.print( F("LOON") );
-    msg.print( fix.location.lon() );
-    msg.print( F("LAAT") );
-    msg.print( fix.location.lat() );
-    msg.terminate();
-  interrupts();
-
-  if (newMsgB) {
-    newMsgB = false;
-    DEBUG_PORT.print( F("msg B to send:  ") );
-    DEBUG_PORT.println( navData );
+  if (len != MSG_SIZE) {
+    static bool warningPrinted = false;
+    if (not warningPrinted) {
+      DEBUG_PORT.print( F("navData::readFrom buffer size ") );
+      DEBUG_PORT.print( len );
+      DEBUG_PORT.print( F(" not the expected size ") );
+      DEBUG_PORT.println( MSG_SIZE );
+      warningPrinted = true;
+    }
   } else {
-    DEBUG_PORT.print( 'B' );
-  }
+    // Prevent receiveNavData from getting the first half of the old
+    //   response and the second half of the new message.
+    noInterrupts();
+      memcpy( this, bytes, MSG_SIZE );
+    interrupts();
 
-} // compileLatLonMsg
+    DEBUG_PORT.print( F("msg received:  ") );
+    showData( bytes, len );
+    DEBUG_PORT.println();
+
+    DEBUG_PORT.print( F("id      : ") );
+    DEBUG_PORT.println( waypointID() );
+    DEBUG_PORT.print( F("lat     : ") );
+    DEBUG_PORT.println( location().lat() );
+    DEBUG_PORT.print( F("lon     : ") );
+    DEBUG_PORT.println( location().lon() );
+    DEBUG_PORT.print( F("bearing : ") );
+    DEBUG_PORT.println( bearing() );
+    DEBUG_PORT.print( F("heading : ") );
+    DEBUG_PORT.println( heading() );
+    DEBUG_PORT.print( F("distance: ") );
+    DEBUG_PORT.println( distance() );
+  }
+} // readFrom

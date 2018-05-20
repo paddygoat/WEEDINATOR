@@ -55,6 +55,13 @@ void checkConsole()
         // simulate sending messages to the TC275
         sendNavData();
       
+      } else if (line[0] == 'r') {
+        // simulate receiving messages *on* the TC275
+        navData_t received = navData;
+        uint8_t message[ navData_t::MSG_SIZE ];
+        navData.printTo( message, sizeof(message) );
+        received.readFrom( message, sizeof(message) );
+
       } else {
         DEBUG_PORT.println( F("Invalid command" ) );
       }

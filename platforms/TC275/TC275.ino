@@ -1,3 +1,5 @@
+#include "TC275.h"
+
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
 /* Put your LMU RAM fast access variables that have no initial values here e.g. uint32 LMU_var; */
@@ -66,6 +68,11 @@ void setup()
   pinMode(10,OUTPUT); //DIRECTION HIGH is clockwise
   pinMode(11,OUTPUT); //STEP Drive Motor
   pinMode(12,OUTPUT); //DIRECTION HIGH is clockwise
+
+  #ifdef WEEDINATOR_SINGLE_CORE
+    setup1();
+    setup2();
+  #endif
 }
 void loop()
 {  
@@ -229,8 +236,16 @@ if (finalDriveValue<450)//Forwards.
   difference = finalSteeringValue - previousFinalSteeringValue;
 
 //////////////////////////////////////////////////////////////////////////////
-}
+
+  #ifdef WEEDINATOR_SINGLE_CORE
+    loop1();
+    loop2();
+  #endif
+
+} // loop
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void torqueDifferential()
 {
   // Make RH wheel turn slightly faster if current in LH wheel too high. Three and five is LH and Four and six is RH.
@@ -467,7 +482,9 @@ void actualTurnSpeedDifferential()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 /*** Core 1 ***/
-#include "tone.h"
+#ifndef ARDUINO_ARCH_AVR
+  #include "tone.h"
+#endif
 /* CPU1 Uninitialised Data */
 StartOfUninitialised_CPU1_Variables
 /* Put your CPU1 fast access variables that have no initial values here e.g. uint32 CPU1_var; */
@@ -476,12 +493,11 @@ EndOfUninitialised_CPU1_Variables
 /* CPU1 Initialised Data */
 StartOfInitialised_CPU1_Variables
 /* Put your CPU1 fast access variables that have an initial value here e.g. uint32 CPU1_var_init = 1; */
-long driveValue=0;
 long steeringValue =0;
 int k=0;
 int m=0;
 int makeTurnValue =0;
-long distanceMetres =0;
+long distanceMM =0;
 int controlState = LOW;
 int ic=0;
 int icMax =0;
@@ -527,7 +543,7 @@ void loop1()
     //SerialASC.print("  LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
     //SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
 //////////////////////////////////////////////////////////////////////////////
-  driveValue=0;
+  long driveValue=0;
   k=0;
   while(k<100)
   { 
@@ -542,11 +558,11 @@ void loop1()
   controlState = digitalRead(23); // Autonomous mode on slide switch to 5V.
   if(controlState==HIGH)
   {
-    if((distanceMetres<500)||(distanceMetres>100000))
+    if((distanceMM<500)||(distanceMM>100000))
     {
-      finalDriveValue = 512; // Machine is waiting for FONA module to get new data.
+      finalDriveValue = 512; // waiting for new waypoint
     }
-    if((distanceMetres>500)&&(makeTurnValue<200)&&(makeTurnValue>-200))
+    if((distanceMM>500)&&(makeTurnValue<200)&&(makeTurnValue>-200))
     {
       steeringValue = makeTurnValue*10 + 512; // Adjust steering to compass sensitivity
       finalSteeringValue = 30*steeringValue;
@@ -642,77 +658,38 @@ void antiClockWise()
 /*** Core 2 ***/
 /* CPU2 Uninitialised Data */
 #include <Wire.h>
-// TwoWire Wire; // Instantiate TwoWire class
-#include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_ILI9341.h"
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
 #define TFT_CS     40
 #define TFT_RST    24  // you can also connect this to the Arduino reset
 #define TFT_DC     22
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+
+#include "navdata.h"
+#include "units.h"
 
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
-int i;
-String initiator;
-String dataString;
-String nothing;
-char c;
-String y;
-String w;
-String a;
-String b;
-String d;
-long latFona;
-long lonFona;
-long latitude;
-long longitude;
 long latitudeUblox;
 long longitudeUblox;
 float bearingDegrees;
-String laatUbloxString;
-String longUbloxString;
-String latFonaString;
-String lonFonaString;
-String lat;
-String lon;
-String laatUblox;
-String longUblox;
-long prevDistMetres;
 
-String yawString;
-double yaw;
-float yawFloat;
-float heading;
-char q;
-char ww[200];
 String text4;
 String text1;
 String text2;
 String text3;
 String text6;
 String text7;
-String textFonaData;
 String textDistanceData;
 String textBearingData;
-char fonaCharacter[100];
 
 EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
 StartOfInitialised_LMURam_Variables
-String bearing = "100000";
-String bearingString = "100000";
-String distance = "100000";
-String distanceString = "100000";
-char url[120];
-long x = 12345678;
-long result=0;
-String triggerWord = "Important";
+
 int STOP = LOW;
-char fonaData[40];
-int aa=0;
-char distanceCharacter[40];
 String cmd = "S"; 
 int emicBearing=0;
 unsigned long previousMillis1Core3 = 0;
@@ -726,13 +703,7 @@ unsigned long millisCalc1 = 0;
 unsigned long millisCalc2 = 0;
 unsigned long millisCalc3 = 0;
 unsigned long millisCalc4 = 0;
-int phpPageInt = 0;
-int previousPhpPageInt = 0;
-String phpPageString ="0";
-String inititiator = "";
-String compassString = "1000";
-String compass = "1000";
-float compassFloat = 0;
+float headingDegrees = 0;
 int makeTurn = LOW;
 String text5 = " .Make a clockwise turn. ";
 int ledBlueState = LOW;
@@ -742,27 +713,34 @@ EndOfInitialised_LMURam_Variables
 void setup2() 
 {
   Serial1.begin(9600);   // Emic
-  Wire.begin();
-  //Wire.begin(); // join i2c bus (address optional for master)
-  SerialASC.begin(115200);
   //Serial1.begin(115200);
+  
+  initNavData();
+
+  SerialASC.begin( DEBUG_BAUD );
   SerialASC.println("Ready to test");
-  tft.begin();
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setRotation(0); 
-  rectangle2 ();  
-  tft.setTextColor(ILI9341_BLUE);
-  tft.setTextSize(4);
-  tft.setCursor(0, 20);
-  tft.println("WEEDINATOR");
+
+  if (useTFT) {
+    tft.begin();
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setRotation(0); 
+    rectangle2 ();  
+    tft.setTextColor(ILI9341_BLUE);
+    tft.setTextSize(4);
+    tft.setCursor(0, 20);
+    tft.println("WEEDINATOR");
+  }
+
   tone(2,1000,1000);   // pin,pitch,duration
   delay(1000);
   noTone(2);
+
   pinMode(37, OUTPUT);   // BLUE LED
   pinMode(39, OUTPUT);   // ORANGE LED 
   digitalWrite(37,LOW);
   digitalWrite(39,LOW); 
-  while (Serial1.available()) 
+
+  while (emicPort.available()) 
   {
     emicIntro();
   }
@@ -779,7 +757,7 @@ void loop2()
       ledBlueState = LOW;
   }
   digitalWrite(37, ledBlueState);
-  makeTurnValue = heading - compassFloat;
+  makeTurnValue = bearingDegrees - headingDegrees;
   if((makeTurnValue)>0)                                        // Does not work for quadrants one and four.
   {
     makeTurn = HIGH;
@@ -789,7 +767,7 @@ void loop2()
     makeTurn = LOW;
   }
   
-  if((heading>=0)&&(heading<90)&&(compassFloat>=270)&&(compassFloat<360))  // Quadrants one and four makeTurn is reversed.
+  if((bearingDegrees>=0)&&(bearingDegrees<90)&&(headingDegrees>=270)&&(headingDegrees<360))  // Quadrants one and four makeTurn is reversed.
   {
     if((makeTurnValue)>0)
     {
@@ -813,14 +791,14 @@ void loop2()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////  
   if (millisCalc2 >= 5000)                            // timer .....  5,000
   {  
-     printTftText();                                  // TFT screen cuases code to pause.
+     updateTFT();                                  // TFT screen cuases code to pause.
      previousMillis2Core3=currentMillisCore3;         
   }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if (millisCalc1 >= 10000)                           // timer  .... 30,000
+  if (millisCalc1 >= 30000)                           // timer  .... 30,000
   {  
-    //SerialASC.println("Emic Speech SHOULD be activated ");
-    while (Serial1.available()) 
+    DEBUG_PORT.println("Emic Speech SHOULD be activated ");
+    while (emicPort.available()) 
     {
       //SerialASC.println("Emic serial IS available");
       emicSpeech1();
@@ -828,16 +806,6 @@ void loop2()
     previousMillis1Core3=currentMillisCore3;                          // this is the only previousMillis reset!
   }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 
-  i=0;
-  y="";
-  a="";
-  b="";
-  d="";
-  lat="";
-  lon="";
-  latFonaString="";
-  lonFonaString="";
-  yawString="";
   
   if (millisCalc3 >= 2000)                            // timer
   {  
@@ -857,31 +825,20 @@ void loop2()
      //intervalThree = 1/resultFour;
      SerialASC.print("IntervalThree= ");SerialASC.println(intervalThree,8);
     
-  SerialASC.println("");
+  SerialASC.println();
   SerialASC.print("LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
   SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
   //SerialASC.print("  samples per cycle:  ");SerialASC.println(icMax);
-  SerialASC.print("Data captured from Fona: ");SerialASC.println(fonaData);
-  SerialASC.print("Integer latitude Fona:   ");SerialASC.println(latFona);
-  SerialASC.print("Integer longitude Fona:   ");SerialASC.println(lonFona);
-  SerialASC.print("Integer latitude UBLOX:  ");SerialASC.println(latitudeUblox);
+  SerialASC.print("Integer latitude  UBLOX:  ");SerialASC.println(latitudeUblox);
   SerialASC.print("Integer longitude UBLOX:  ");SerialASC.println(longitudeUblox); 
-  //SerialASC.print("distanceMetres=          ");SerialASC.println(distanceMetres);
-  //SerialASC.print("bearingInt=              ");SerialASC.println(bearingDegrees);
-  SerialASC.print("Heading=                 ");SerialASC.println(bearingDegrees/100);
-  SerialASC.print("Compass integer:         ");SerialASC.println(compassFloat);
-  //SerialASC.print("Way point =     ");SerialASC.println(waypointID);
-  SerialASC.print("distanceMetres=          ");SerialASC.println(distanceMetres);
-  SerialASC.println("");
-  //SerialASC.print("phpPageInt=          ");SerialASC.println(phpPageInt);
-  //SerialASC.print("previousPhpPageInt=  ");SerialASC.println(previousPhpPageInt);
-  //SerialASC.print("phpPageString=       ");SerialASC.println(phpPageString); 
-  //SerialASC.print("phpPageString[0]=    ");SerialASC.println(phpPageString[0]); 
-  //SerialASC.print("phpPageString[1]=    ");SerialASC.println(phpPageString[1]); 
-  //SerialASC.print("phpPageString[2]=    ");SerialASC.println(phpPageString[2]); 
-  SerialASC.print("controlState Value= ");SerialASC.println(controlState);
+  SerialASC.print("Bearing    = ");SerialASC.println(bearingDegrees);
+  SerialASC.print("Heading    = ");SerialASC.println(headingDegrees);
+  SerialASC.print("Way point  = ");SerialASC.println(navData.waypointID());
+  SerialASC.print("distanceMM = ");SerialASC.println(distanceMM);
+  SerialASC.println();
+  SerialASC.print("controlState   Value= ");SerialASC.println(controlState);
   SerialASC.print("Final Steering Value= ");SerialASC.println(finalSteeringValue);
-  SerialASC.print("Make Turn Value= ");SerialASC.println(makeTurnValue);
+  SerialASC.print("Make Turn      Value= ");SerialASC.println(makeTurnValue);
   //SerialASC.print("Previous steering Value= ");SerialASC.println(previousFinalSteeringValue);
   //SerialASC.print("Difference= ");SerialASC.println(difference);
   //SerialASC.print("wheelsPosition= ");SerialASC.println(wheelsPosition);
@@ -927,179 +884,57 @@ void loop2()
   
 /////////////////////////////////////////////////////////////////////////////////////////
 
-  Wire.requestFrom(26, 32);    // request 32 bytes from slave device #26 UBLOX Data // Dont use 25.
-  a="";
-  bearing="";
-  bearingString="";
-  distance="";
-  distanceString="";
-  longUblox="";
-  laatUblox="";
-  laatUbloxString="";
-  longUbloxString="";
-  compassString = "";
-  compass="";
-  //SerialASC.print("C:   ");
-  while (Wire.available()) 
-  {
-    c = Wire.read(); // receive a byte as character
-    //SerialASC.print(c);
-    if (isalpha(c))         // analyse c for letters
+  uint8_t  message[ navData_t::MSG_SIZE ];
+  uint8_t *ptr   = &message[0];
+  uint8_t  count = 0;
+
+  if (useI2C) {
+    Wire.requestFrom( MEGA_I2C_ADDR, navData_t::MSG_SIZE );
+
+    while (Wire.available()) 
     {
-      a=a+c;                // string = string + character
-      if (a=="LAAT")
-      {
-        longUblox="";
-        bearing="";
-     //   distance="";
-        lat="";
-        lon="";
-        laatUblox=a;
-        //SerialASC.print("Trigger word LAAT detected!: ");SerialASC.println(laatUblox);
-        a="";
-      } 
-      if (a=="LOON")
-      {
-        lat="";
-        lon="";
-        laatUblox="";
-        bearing="";
-      //  distance="";
-        longUblox=a;
-        //SerialASC.print("Trigger word LOON detected!: ");SerialASC.println(longUblox);
-        a="";
-      } 
-      if (a=="BEAR")
-      {
-        lat="";
-        lon="";
-        longUblox="";
-        laatUblox="";
-     //   distance="";
-        bearing=a;    // String = string.
-        //SerialASC.print("Trigger word BEAR detected!: ");SerialASC.println(bearingDegrees);
-        a="";
-      } 
-      if (a=="DIST")
-      {
-        lat="";
-        lon="";
-        longUblox="";
-        laatUblox="";
-        bearing="";
-        distance=a;    // String = string.
-        //SerialASC.print("Trigger word DIST detected!: ");SerialASC.println(distanceString);
-        a="";
-      } 
-      if (a=="HEAD")
-      {
-        lat="";
-        lon="";
-        longUblox="";
-        laatUblox="";
-        bearing="";
-        distance="";
-        compass=a;    // String = string.
-        //SerialASC.print("Trigger word HEAD detected!: ");SerialASC.println(compass);
-        a="";
-      } 
-    } 
-    if (laatUblox=="LAAT")
-    {
-      if (isdigit(c))         // analyse c for numerical digit
-      {
-        laatUbloxString=laatUbloxString+c;                // string = string + character
+      uint8_t c = Wire.read();
+      if (count < sizeof(message)) {
+        count++;
+        *ptr++ = c;
       }
+    } //////// End of I2C read
+
+  } else if (useConsole) {
+    if (DEBUG_PORT.available() and (DEBUG_PORT.read() == 'r')) {
+      uint8_t example[] = 
+        { 0xB0, 0x30, 0xBE, 0x1F, // lat 532558000
+          0xF0, 0x21, 0x6E, 0xFD, // lon -43114000
+          0x80, 0x96, 0x98, 0x00, // dist 10000000mm
+          0x7B, 0x00,             // waypoint 123
+          0x39, 0x30,             // bearing 123.45
+          0x85, 0x1A };
+      count = sizeof(example);
+      memcpy( message, example, count );
     }
-    if (longUblox=="LOON")
-    {
-      if (isdigit(c))         // analyse c for numerical digit
-      {
-        longUbloxString=longUbloxString+c;                // string = string + character
-      }
-    }
-    if (bearing=="BEAR")
-    {
-      if (isdigit(c))         // analyse c for numerical digit
-      {
-        bearingString=bearingString+c;                // string = string + character
-      }
-    }
-    if (distance=="DIST")
-    {
-      if (isdigit(c))         // analyse c for numerical digit
-      {
-        distanceString=distanceString+c;                // string = string + character
-      }
-    }
-    if (compass=="HEAD")
-    {
-      if (isdigit(c))         // analyse c for numerical digit
-      {
-        compassString=compassString+c;                // string = string + character
-      }
-    }
-    if (laatUblox=="LAAT")
-    {
-      result=(laatUbloxString).toInt();
-      latitudeUblox = result;
-      //SerialASC.println("");
-      //SerialASC.print("latitude Ublox: ");SerialASC.println(latitudeUblox);
-    }
-    if (longUblox=="LOON")
-    {
-      result=(longUbloxString).toInt();
-      longitudeUblox = result;
-      //SerialASC.println("");
-      //SerialASC.print("Longitude Ublox: ");SerialASC.println(longitudeUblox);
-    }
-    if (bearing=="BEAR")
-    {
-      result=(bearingString).toInt();
-      bearingDegrees = result;
-      heading = bearingDegrees/100;
-      emicBearing=(bearingString).toInt();
-      //SerialASC.println("");
-      //SerialASC.print("Heading: ");SerialASC.println(heading,2);
-    }
-    if (distance=="DIST")
-    {
-      result=(distanceString).toInt();
-      distanceMetres = result;
-      //SerialASC.println("");
-      //SerialASC.print("distanceMetres integer: ");SerialASC.println(distanceMetres);
-    }
-    if (compass=="HEAD")
-    {
-      result=(compassString).toInt();
-      compassFloat = result/100.00;
-      //SerialASC.println("");
-      //SerialASC.print("Compass integer: ");SerialASC.println(compassFloat);
-    }
-  } //////// End of I2C write
-    
-//  SerialASC.print("Latitude: ");SerialASC.println(latitude);
-//  SerialASC.print("Longitude: ");SerialASC.println(longitude);
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// This is where the distance data is compiled into a character .... Do we actually need this any more?
-  distanceString =  initiator + distanceString ;
-  int n = distanceString.length();
-//    SerialASC.print("Distance string in character compile:     ");SerialASC.println(distanceString);   
-//  SerialASC.print("Size of string:  ");SerialASC.println(n);
-  // Builds the character:
-      for (int aa=0;aa<=n;aa++)                    
-      {
-          distanceCharacter[aa] = distanceString[aa];
-      }
-//  SerialASC.println("");
-//  SerialASC.print("Distance character in character compile:  ");SerialASC.println(distanceCharacter);
-//  SerialASC.println("");
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-//  delay(100);
-  
-}
-unsigned long printTftText() 
+  }
+
+  navData.readFrom( message, count );
+
+  latitudeUblox  = navData.location().lat();
+  longitudeUblox = navData.location().lon();
+
+  distanceMM     = navData.distance() * MM_PER_M;
+  headingDegrees = navData.heading();
+  bearingDegrees = navData.bearing();
+
+  emicBearing    = bearingDegrees;
+
+} // loop2
+
+
+void updateTFT() 
 {
+  if (not useTFT) {
+    DEBUG_PORT.println( "TFT updated" );
+    return;
+  }
+
   tft.setRotation(0); 
   rectangle2 ();  
   tft.setTextColor(ILI9341_BLUE);
@@ -1111,23 +946,23 @@ unsigned long printTftText()
   tft.setCursor(0, 72);
   tft.println("Compass:  "); 
   tft.setCursor(110, 72);
-  tft.println(compassFloat); 
+  tft.println(headingDegrees); 
   tft.setCursor(185, 67);
   tft.println("o"); 
   tft.setCursor(0, 102);
-  tft.println("Heading:");
+  tft.println("Bearing:");
   tft.setCursor(110, 102);
-  tft.println(heading,2);
+  tft.println(bearingDegrees,2);
   tft.setCursor(185, 97);
   tft.println("o");
   tft.setCursor(0, 132);
   tft.println("Distance:        mm ");
   tft.setCursor(110, 132);
-  tft.println(distanceMetres);
+  tft.println(distanceMM);
   tft.setCursor(0, 160);
   tft.println("Waypoint:            ");
   tft.setCursor(110, 160);
-  //tft.println(waypointID);
+  tft.println(navData.waypointID());
   rectangle1 ();
   tft.setCursor(0, 190);
   tft.println("Steering Val:     ");
@@ -1144,13 +979,13 @@ unsigned long printTftText()
   tft.setCursor(170, 246);
   tft.println(wheelsPosition);
   
-  tft.setTextSize(1);
-  tft.setCursor(0, 274);
-  tft.println("FONA:   LAT             LON");
-  tft.setCursor(70, 274);
-  tft.println(latFona);
-  tft.setCursor(170, 274);
-  tft.println(lonFona);
+  //tft.setTextSize(1);
+  //tft.setCursor(0, 274);
+  //tft.println("FONA:   LAT             LON");
+  //tft.setCursor(70, 274);
+  //tft.println(latFona);
+  //tft.setCursor(170, 274);
+  //tft.println(lonFona);
 
   tft.setCursor(0, 284);
   tft.println("UBLOX:  LAT             LON");
@@ -1172,7 +1007,10 @@ unsigned long printTftText()
     tft.println("BACKWARDS");
     }
   tft.println(finalSteeringValue);
-}
+
+} // updateTFT
+
+
 void rectangle1 ()
 {
           tft.fillRect(0, 186, 250, 135, ILI9341_RED);
@@ -1199,7 +1037,7 @@ void emicDetect()
   // Emic 2 returns ':' if ready for command
   while (Serial1.read() != ':'); 
   // Set volume to maximum
-  Serial1.print('V18\n');
+  Serial1.print("V18\n");
   delay(10);
   Serial1.flush(); 
   Serial1.print('N');
@@ -1218,16 +1056,16 @@ void emicIntro()
   // Check for response from Emic 2
   Serial1.print('\n');
   // Emic 2 returns ':' if ready for command
-  while (Serial1.read() != ':'); 
+  while (emicPort.read() != ':'); 
   // Set volume to maximum
-  Serial1.print('V18\n');
+  Serial1.print("V18\n");
   delay(10);
   Serial1.flush(); 
   Serial1.print('N');
   Serial1.print(6); 
   Serial1.print('\n');
   Serial1.print('\n');
-  while (Serial1.read() != ':');
+  while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
   text1 = "hello world. welcome to the weedinator. Lets go smash the fuck out of some weeds.";
@@ -1236,29 +1074,22 @@ void emicIntro()
 }
 void emicSpeech1()
 {
-  int ss=30;
-  for (int aa=0;aa<=ss;aa++)                    
-  {
-  fonaCharacter[aa] = fonaData[aa];
-  }
   // Check for response from Emic 2
   Serial1.print('\n');
   // Emic 2 returns ':' if ready for command
-  while (Serial1.read() != ':'); 
+  while (emicPort.read() != ':'); 
   delay(10);
   Serial1.flush(); 
   Serial1.print('\n');
   Serial1.print('\n');
-  while (Serial1.read() != ':');
+  while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
-  text1 = " and this is the latitude data from the FONA module.";
   text2 = ".. and this is the distance for the weedinator to travel.";
   text3 = "and the bearing is.";
-  textFonaData = fonaData;
-  textDistanceData = distanceCharacter;
+  textDistanceData = distanceMM;
   //SerialASC.println("Emic Speech activated ");
-  //SerialASC.print("Distance to travel: ");SerialASC.println(distanceMetres);
+  //SerialASC.print("Distance to travel: ");SerialASC.println(distanceMM);
   if(makeTurn == HIGH)
   {
     text5 = " Make a clock wise turn. of ..";
@@ -1268,11 +1099,17 @@ void emicSpeech1()
     text5 = " Make an anti clock wise turn. of ..";
   }
   text7 = "Start ";
-  text4 = "We are now going to way point " + phpPageString + text2 + distanceMetres + " .. milli metres .. " 
-  + text3 + emicBearing/100 + " .. degrees .. " + text5 + makeTurnValue + " .. degrees .. End of message .. ";
+  if (navData.waypointID() != 0) {
+    text4 = "We are now going to way point " + navData.waypointID() +
+            text2 + distanceMM + " .. milli metres .. " +
+            text3 + emicBearing/100 + " .. degrees .. " +
+            text5 + makeTurnValue + " .. degrees";
+  } else {
+    text4 = "No way point";
+  }
+  text4 += " .. End of message .. ";
   text6 = "[:phone arpa speak on][:rate 190][:n0][ GAA<400,12>DD<200,15>B<200,10>LLEH<200,19>EH<500,22>S<200,18>AH<100,18>MEH<200,16>K<100,13>AH<200,12>][:n0]";
   //SerialASC.println(text4);
-  //Serial1.print(cmd + text4 + "\n");
-  Serial1.print(cmd + "Distance to next waypoint is" + distanceMetres + " .. milli metres .. " + "\n");
+  Serial1.print(cmd + text4 + "\n");
   ; 
 }

@@ -63,10 +63,6 @@ void yield()
     heartbeat();
     checkBeep();
     checkGPS ();
-
-    if (setupState >= SETUP_COMPLETED) {
-      checkNavData();
-    }
   }
 
 } // yield
