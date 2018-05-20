@@ -540,8 +540,8 @@ void loop1()
     runningmaxCurrentValueSix = (maxCurrentValueSix - 523)/80;
     maxCurrentValueFive = 0;
     maxCurrentValueSix = 0;
-    //SerialASC.print("  LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
-    //SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
+    //DEBUG_PORT.print("  LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
+    //DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
 //////////////////////////////////////////////////////////////////////////////
   long driveValue=0;
   k=0;
@@ -712,13 +712,13 @@ EndOfInitialised_LMURam_Variables
 
 void setup2() 
 {
-  Serial1.begin(9600);   // Emic
-  //Serial1.begin(115200);
+  emicPort.begin( EMIC_BAUD );
+
   
   initNavData();
 
-  SerialASC.begin( DEBUG_BAUD );
-  SerialASC.println("Ready to test");
+  DEBUG_PORT.begin( DEBUG_BAUD );
+  DEBUG_PORT.println("Ready to test");
 
   if (useTFT) {
     tft.begin();
@@ -786,7 +786,7 @@ void loop2()
   unsigned long currentMillisCore3 = millis();
   millisCalc1 = currentMillisCore3 - previousMillis1Core3; // Emic speech
   millisCalc2 = currentMillisCore3 - previousMillis2Core3; // TFT screen
-  millisCalc3 = currentMillisCore3 - previousMillis3Core3; // Serial print
+  millisCalc3 = currentMillisCore3 - previousMillis3Core3; // Debug print
   millisCalc4 = currentMillisCore3 - previousMillis4Core3; // I2C
 /////////////////////////////////////////////////////////////////////////////////////////////////////////  
   if (millisCalc2 >= 5000)                            // timer .....  5,000
@@ -800,7 +800,7 @@ void loop2()
     DEBUG_PORT.println("Emic Speech SHOULD be activated ");
     while (emicPort.available()) 
     {
-      //SerialASC.println("Emic serial IS available");
+      //DEBUG_PORT.println("Emic serial IS available");
       emicSpeech1();
     }
     previousMillis1Core3=currentMillisCore3;                          // this is the only previousMillis reset!
@@ -811,75 +811,75 @@ void loop2()
   {  
     previousMillis3Core3=currentMillisCore3; 
 
-     //SerialASC.print("Initial intervalThree= ");SerialASC.println(intervalThree);
+     //DEBUG_PORT.print("Initial intervalThree= ");DEBUG_PORT.println(intervalThree);
      //int radiusRatio =3;
      //intervalThree =  (1/(1/intervalThree) - (1/(intervalOne*radiusRatio))); // Makes right hand inside wheel drive a bit slower.
      //resultOne =  1/intervalThree;
-     SerialASC.print("resultOne: ");SerialASC.println(resultOne,8);
+     DEBUG_PORT.print("resultOne: ");DEBUG_PORT.println(resultOne,8);
      //resultTwo = intervalOne*radiusRatio;
-     SerialASC.print("resultTwo: ");SerialASC.println(resultTwo);
+     DEBUG_PORT.print("resultTwo: ");DEBUG_PORT.println(resultTwo);
      //resultThree = 1/resultTwo;
-     SerialASC.print("resultThree: ");SerialASC.println(resultThree,8);
+     DEBUG_PORT.print("resultThree: ");DEBUG_PORT.println(resultThree,8);
      //resultFour = resultTwo - resultThree;
-     SerialASC.print("resultFour: ");SerialASC.println(resultFour,8);
+     DEBUG_PORT.print("resultFour: ");DEBUG_PORT.println(resultFour,8);
      //intervalThree = 1/resultFour;
-     SerialASC.print("IntervalThree= ");SerialASC.println(intervalThree,8);
+     DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
     
-  SerialASC.println();
-  SerialASC.print("LHS amps max:  ");SerialASC.print(runningmaxCurrentValueFive,2);
-  SerialASC.print("  RHS amps max:  ");SerialASC.println(runningmaxCurrentValueSix,2);
-  //SerialASC.print("  samples per cycle:  ");SerialASC.println(icMax);
-  SerialASC.print("Integer latitude  UBLOX:  ");SerialASC.println(latitudeUblox);
-  SerialASC.print("Integer longitude UBLOX:  ");SerialASC.println(longitudeUblox); 
-  SerialASC.print("Bearing    = ");SerialASC.println(bearingDegrees);
-  SerialASC.print("Heading    = ");SerialASC.println(headingDegrees);
-  SerialASC.print("Way point  = ");SerialASC.println(navData.waypointID());
-  SerialASC.print("distanceMM = ");SerialASC.println(distanceMM);
-  SerialASC.println();
-  SerialASC.print("controlState   Value= ");SerialASC.println(controlState);
-  SerialASC.print("Final Steering Value= ");SerialASC.println(finalSteeringValue);
-  SerialASC.print("Make Turn      Value= ");SerialASC.println(makeTurnValue);
-  //SerialASC.print("Previous steering Value= ");SerialASC.println(previousFinalSteeringValue);
-  //SerialASC.print("Difference= ");SerialASC.println(difference);
-  //SerialASC.print("wheelsPosition= ");SerialASC.println(wheelsPosition);
-  SerialASC.print("Final Drive Value= ");SerialASC.println(finalDriveValue);
-  SerialASC.print("Steering Value= ");SerialASC.println(steeringValue);
-  //SerialASC.print("analogueRead A1= ");SerialASC.println(driveValue);
-  SerialASC.print("IntervalOne= ");SerialASC.println(intervalOne);
-  SerialASC.print("IntervalTwo= ");SerialASC.println(intervalTwo);
-  SerialASC.print("IntervalThree= ");SerialASC.println(intervalThree);
-  SerialASC.print("IntervalFour= ");SerialASC.println(intervalFour);
-  //SerialASC.print("velocityControlLeft= ");SerialASC.println(velocityControlLeft);
-  //SerialASC.print("velocityControlRight= ");SerialASC.println(velocityControlRight); 
-  //SerialASC.print("ATSDState= ");SerialASC.println(ATSDState);
-  SerialASC.print("Stationary state= ");SerialASC.println(stationary);
+  DEBUG_PORT.println();
+  DEBUG_PORT.print("LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
+  DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
+  //DEBUG_PORT.print("  samples per cycle:  ");DEBUG_PORT.println(icMax);
+  DEBUG_PORT.print("Integer latitude  UBLOX:  ");DEBUG_PORT.println(latitudeUblox);
+  DEBUG_PORT.print("Integer longitude UBLOX:  ");DEBUG_PORT.println(longitudeUblox); 
+  DEBUG_PORT.print("Bearing    = ");DEBUG_PORT.println(bearingDegrees);
+  DEBUG_PORT.print("Heading    = ");DEBUG_PORT.println(headingDegrees);
+  DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
+  DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
+  DEBUG_PORT.println();
+  DEBUG_PORT.print("controlState   Value= ");DEBUG_PORT.println(controlState);
+  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
+  DEBUG_PORT.print("Make Turn      Value= ");DEBUG_PORT.println(makeTurnValue);
+  //DEBUG_PORT.print("Previous steering Value= ");DEBUG_PORT.println(previousFinalSteeringValue);
+  //DEBUG_PORT.print("Difference= ");DEBUG_PORT.println(difference);
+  //DEBUG_PORT.print("wheelsPosition= ");DEBUG_PORT.println(wheelsPosition);
+  DEBUG_PORT.print("Final Drive Value= ");DEBUG_PORT.println(finalDriveValue);
+  DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
+  //DEBUG_PORT.print("analogueRead A1= ");DEBUG_PORT.println(driveValue);
+  DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
+  DEBUG_PORT.print("IntervalTwo= ");DEBUG_PORT.println(intervalTwo);
+  DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree);
+  DEBUG_PORT.print("IntervalFour= ");DEBUG_PORT.println(intervalFour);
+  //DEBUG_PORT.print("velocityControlLeft= ");DEBUG_PORT.println(velocityControlLeft);
+  //DEBUG_PORT.print("velocityControlRight= ");DEBUG_PORT.println(velocityControlRight); 
+  //DEBUG_PORT.print("ATSDState= ");DEBUG_PORT.println(ATSDState);
+  DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
   
   
   if(forwards==HIGH)
     {
-    SerialASC.println("FORWARDS");   
+    DEBUG_PORT.println("FORWARDS");   
     }
   if(backwards==HIGH)
     {
-    SerialASC.println("BACKWARDS");   
+    DEBUG_PORT.println("BACKWARDS");   
     }
   if(rightHandLock==HIGH)
     {
-    SerialASC.println("RIGHT HAND LOCK");   
+    DEBUG_PORT.println("RIGHT HAND LOCK");   
     }
   if(leftHandLock==HIGH)
     {
-    SerialASC.println("LEFT HAND LOCK");   
+    DEBUG_PORT.println("LEFT HAND LOCK");   
     }
   if(clockW==HIGH)
     {
-    SerialASC.println("GOING CLOCKWISE");   
+    DEBUG_PORT.println("GOING CLOCKWISE");   
     }
   if(antiClockW==HIGH)
     {
-    SerialASC.println("GOING ANTI-CLOCKWISE");   
+    DEBUG_PORT.println("GOING ANTI-CLOCKWISE");   
     }
-  SerialASC.println("");
+  DEBUG_PORT.println("");
   } // millisCalc3
   
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1021,75 +1021,75 @@ void rectangle2 ()
           tft.fillRect(0, 65, 250, 118, ILI9341_RED);
           // x,y,(from top left corner)w,h
 }
-void flushSerial1()
+void emptyEMICport()
 {
-  while (Serial1.available()) 
+  //Flush input buffer
+  while (emicPort.available()) 
   {
-    //Flush serial1
-    int inByte = Serial1.read();
-    //SerialASC.write(inByte);
+    int inByte = emicPort.read();
+    //DEBUG_PORT.write(inByte);
   }
 }
 void emicDetect()
 {
   // Check for response from Emic 2
-  Serial1.print('\n');
+  emicPort.print('\n');
   // Emic 2 returns ':' if ready for command
-  while (Serial1.read() != ':'); 
+  while (emicPort.read() != ':'); 
   // Set volume to maximum
-  Serial1.print("V18\n");
+  emicPort.print("V18\n");
   delay(10);
-  Serial1.flush(); 
-  Serial1.print('N');
-  Serial1.print(5); 
-  Serial1.print('\n');
-  Serial1.print('\n');
-  while (Serial1.read() != ':');
+  emicPort.flush(); 
+  emicPort.print('N');
+  emicPort.print(5); 
+  emicPort.print('\n');
+  emicPort.print('\n');
+  while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
   text1 = "an object has been detected.";
-  Serial1.print(cmd + text1 + "\n");
-  ; 
+  emicPort.print(cmd + text1 + "\n");
+
 }
 void emicIntro()
 {
   // Check for response from Emic 2
-  Serial1.print('\n');
+  emicPort.print('\n');
   // Emic 2 returns ':' if ready for command
   while (emicPort.read() != ':'); 
   // Set volume to maximum
-  Serial1.print("V18\n");
+  emicPort.print("V18\n");
   delay(10);
-  Serial1.flush(); 
-  Serial1.print('N');
-  Serial1.print(6); 
-  Serial1.print('\n');
-  Serial1.print('\n');
+  emicPort.flush(); 
+  emicPort.print('N');
+  emicPort.print(6); 
+  emicPort.print('\n');
+  emicPort.print('\n');
   while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
   text1 = "hello world. welcome to the weedinator. Lets go smash the fuck out of some weeds.";
-  Serial1.print(cmd + text1 + "\n");
+  emicPort.print(cmd + text1 + "\n");
   ; 
 }
 void emicSpeech1()
 {
   // Check for response from Emic 2
-  Serial1.print('\n');
+  emicPort.print('\n');
   // Emic 2 returns ':' if ready for command
   while (emicPort.read() != ':'); 
   delay(10);
-  Serial1.flush(); 
-  Serial1.print('\n');
-  Serial1.print('\n');
+  emicPort.flush(); 
+  emicPort.print('\n');
+  emicPort.print('\n');
   while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
   text2 = ".. and this is the distance for the weedinator to travel.";
   text3 = "and the bearing is.";
   textDistanceData = distanceMM;
-  //SerialASC.println("Emic Speech activated ");
-  //SerialASC.print("Distance to travel: ");SerialASC.println(distanceMM);
+  //DEBUG_PORT.println("Emic Speech activated ");
+  //DEBUG_PORT.print("Distance to travel: ");DEBUG_PORT.println(distanceMM);
   if(makeTurn == HIGH)
   {
     text5 = " Make a clock wise turn. of ..";
@@ -1109,7 +1109,7 @@ void emicSpeech1()
   }
   text4 += " .. End of message .. ";
   text6 = "[:phone arpa speak on][:rate 190][:n0][ GAA<400,12>DD<200,15>B<200,10>LLEH<200,19>EH<500,22>S<200,18>AH<100,18>MEH<200,16>K<100,13>AH<200,12>][:n0]";
-  //SerialASC.println(text4);
-  Serial1.print(cmd + text4 + "\n");
+  //DEBUG_PORT.println(text4);
+  emicPort.print(cmd + text4 + "\n");
   ; 
 }

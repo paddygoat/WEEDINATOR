@@ -28,11 +28,15 @@ const uint8_t MEGA_I2C_ADDR   = 26;
 #if defined( SIMULATE_DEVICES )
 
   #define emicPort Serial
+  const uint32_t EMIC_BAUD = DEBUG_BAUD;
+
   static const bool useConsole = true;
 
 #else
 
   #define emicPort Serial1
+  const uint32_t EMIC_BAUD = 9600;
+
   static const bool useConsole = false;
 
 #endif
