@@ -13,7 +13,7 @@ static bool lineReady();
 //  For testing, accept commands from the "console" to simulate:
 //     *  picking a new waypoint ID
 //     *  receiving a PHP response with waypoint lat/lon
-//     *  displaying current message A/B
+//     *  displaying current message
 
 bool           gotConsolePHP = false;
 

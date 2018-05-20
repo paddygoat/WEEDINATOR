@@ -36,23 +36,19 @@ void checkGPS()
     if (fix.valid.location) {
       beep( 100 );
 
-      //DEBUG_PORT.print( F("Current GPS latitude:  ") );
-      //DEBUG_PORT.println( fix.location.lat() );
-      //DEBUG_PORT.print( F("Waypoint Latitude from Fona:      ") );
-      //DEBUG_PORT.println( waypoint.lat() );
-      //DEBUG_PORT.print( F("Current GPS longitude: ") );
-      //DEBUG_PORT.println( fix.location.lon() );
-      //DEBUG_PORT.print( F("Waypoint Longitude from Fona:     ") );
-      //DEBUG_PORT.println( waypoint.lon() );
-      //DEBUG_PORT.println();
+      DEBUG_PORT.print( F("Current location: p/LAT") );
+      DEBUG_PORT.print( fix.location.lat() );
+      DEBUG_PORT.print( F("LONG") );
+      DEBUG_PORT.println( fix.location.lon() );
+      DEBUG_PORT.println();
 
       //readCompass();
 
       if (prevFix.valid.location) {
         // calculate heading from the current and previous locations
-        float heading = prevFix.location.BearingToDegrees( fix.location );
-        fix.hdg.whole = (int) heading;
-        fix.hdg.frac  = (heading - (float) fix.hdg.whole) * 100.0;
+        float heading     = prevFix.location.BearingToDegrees( fix.location );
+        fix.hdg.whole     = (int) heading;
+        fix.hdg.frac      = (heading - (float) fix.hdg.whole) * 100.0;
         fix.valid.heading = true;
       }
 

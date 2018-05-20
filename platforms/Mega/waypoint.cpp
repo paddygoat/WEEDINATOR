@@ -17,7 +17,7 @@ void waypoint_t::next()
     DEBUG_PORT.println( current.id );
     updateNavData();
   } else {
-    DEBUG_PORT.print( F("No more waypoints!") );
+    DEBUG_PORT.println( F("No more waypoints!") );
   }
 
 } // next
