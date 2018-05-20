@@ -4,7 +4,8 @@
 #include <stddef.h> // for size_t
 #include <stdint.h>
 
-extern void showData( char *data, size_t n );
+extern void showData( char    *data, size_t n );
+extern void showData( uint8_t *data, size_t n );
 
 extern bool parseValue( char * & ptr, size_t & remaining, uint32_t & value );
 
