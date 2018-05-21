@@ -912,6 +912,8 @@ void loop2()
         };
       count = sizeof(example);
       memcpy( message, example, count );
+    } else {
+      DEBUG_PORT.print( '?' );
     }
   }
 

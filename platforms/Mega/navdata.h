@@ -16,18 +16,18 @@ extern void sendNavData();
 class navData_t
 {
 private:
+  uint16_t           _waypointID;
   NeoGPS::Location_t _location  ;
   uint32_t           _distance  ; // mm (meters in accessor/mutator)
-  uint16_t           _waypointID;
   uint16_t           _bearing   ; // degrees * 100 (degrees in accessor/mutator)
   uint16_t           _heading   ; // degrees * 100 (degrees in accessor/mutator)
 
 public:
   navData_t()
     :
+      _waypointID(0),
       _location  (0L,0L),
       _distance  (0),
-      _waypointID(0),
       _bearing   (0),
       _heading   (0)
     {}

@@ -1,7 +1,7 @@
 #include "navdata.h"
 
 #include <Arduino.h>
-#include <NeoPrintToRAM.h>
+#include <NeoStreamFromRAM.h>
 #include <Wire.h>
 
 #include "Mega.h"
@@ -12,7 +12,13 @@
 
 navData_t navData;
 
-const size_t navData_t::MSG_SIZE = sizeof( navData_t );
+const size_t navData_t::MSG_SIZE =
+  sizeof( navData_t::_location._lat ) +
+  sizeof( navData_t::_location._lon ) +
+  sizeof( navData_t::_waypointID    ) +
+  sizeof( navData_t::_distance      ) +
+  sizeof( navData_t::_bearing       ) +
+  sizeof( navData_t::_heading       );
  
 ////////////////////////////////////////////////////////////////////////////
 
@@ -109,8 +115,15 @@ void navData_t::printTo( uint8_t *bytes, size_t len )
   } else {
     // Prevent sendNavData from getting the first half of the old
     //   response and the second half of the new message.
+    Neo::PrintToRAM pieces( bytes, len );
+
     noInterrupts();
-      memcpy( bytes, this, MSG_SIZE );
+      pieces.write( (uint8_t *) &_location._lat, sizeof(_location._lat) );
+      pieces.write( (uint8_t *) &_location._lon, sizeof(_location._lon) );
+      pieces.write( (uint8_t *) &_waypointID   , sizeof(_waypointID) );
+      pieces.write( (uint8_t *) &_distance     , sizeof(_distance  ) );
+      pieces.write( (uint8_t *) &_bearing      , sizeof(_bearing   ) );
+      pieces.write( (uint8_t *) &_heading      , sizeof(_heading   ) );
     interrupts();
 
     DEBUG_PORT.print( F("msg to send :  ") );
@@ -135,8 +148,15 @@ void navData_t::readFrom( uint8_t *bytes, size_t len )
   } else {
     // Prevent receiveNavData from getting the first half of the old
     //   response and the second half of the new message.
+    Neo::StreamFromRAM pieces( bytes, len );
+
     noInterrupts();
-      memcpy( this, bytes, MSG_SIZE );
+      pieces.readBytes( (uint8_t *) &_location._lat, sizeof(_location._lat) );
+      pieces.readBytes( (uint8_t *) &_location._lon, sizeof(_location._lon) );
+      pieces.readBytes( (uint8_t *) &_waypointID   , sizeof(_waypointID) );
+      pieces.readBytes( (uint8_t *) &_distance     , sizeof(_distance  ) );
+      pieces.readBytes( (uint8_t *) &_bearing      , sizeof(_bearing   ) );
+      pieces.readBytes( (uint8_t *) &_heading      , sizeof(_heading   ) );
     interrupts();
 
     DEBUG_PORT.print( F("msg received:  ") );
