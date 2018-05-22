@@ -24,13 +24,11 @@ namespace Neo {
 
 class StreamFromRAM : public PrintToRAM
 {
+    StreamFromRAM();                                      // no default constructor
     StreamFromRAM( const StreamFromRAM & );               // no copy constructor
     StreamFromRAM & operator = ( const StreamFromRAM & ); // no assignment
 
   public:
-    StreamFromRAM()
-      : PrintToRAM( nullptr, 0 )
-        {}
     StreamFromRAM( const void *ram, size_t size )
       : PrintToRAM( (void *) ram, size )
         {}
