@@ -1,5 +1,3 @@
-#include "TC275.h"
-
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
 /* Put your LMU RAM fast access variables that have no initial values here e.g. uint32 LMU_var; */
@@ -14,6 +12,8 @@ EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
 StartOfInitialised_LMURam_Variables
+
+#include "TC275.h"
 
 float runningmaxCurrentValueFive = 1;
 float runningmaxCurrentValueSix = 1;
@@ -714,11 +714,10 @@ void setup2()
 {
   emicPort.begin( EMIC_BAUD );
 
-  
-  initNavData();
-
   DEBUG_PORT.begin( DEBUG_BAUD );
   DEBUG_PORT.println("TC275");
+
+  initNavData();
 
   if (useTFT) {
     tft.begin();
