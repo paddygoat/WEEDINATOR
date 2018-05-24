@@ -9,7 +9,13 @@ const uint32_t DEBUG_BAUD = 115200;
 
 const uint8_t MEGA_I2C_ADDR   = 26;
 
+
 #ifdef ARDUINO_ARCH_AVR
+
+#ifdef __TC27XX__
+  #error TC275 build has ARDUINO_ARCH_AVR defined!
+#endif
+
   #define SIMULATE_DEVICES
   #define WEEDINATOR_SINGLE_CORE
 
