@@ -968,18 +968,18 @@ void updateTFT()
   rectangle1 ();
   tft.setCursor(0, 190);
   tft.println("Steering Val:     ");
-  tft.setCursor(170, 190);
+  tft.setCursor(160, 190);
   tft.println(finalSteeringValue);
   
   tft.setCursor(0, 218);
-  tft.println("Difference:     ");
+  //tft.println("Difference:     ");
   tft.setCursor(170, 218);
-  tft.println(difference);
+  //tft.println(difference);
 
   tft.setCursor(0, 246);
-  tft.println("Wheels Pos:     ");
+  //tft.println("Wheels Pos:     ");
   tft.setCursor(170, 246);
-  tft.println(wheelsPosition);
+  //tft.println(wheelsPosition);
   
   //tft.setTextSize(1);
   //tft.setCursor(0, 274);
@@ -988,27 +988,37 @@ void updateTFT()
   //tft.println(latFona);
   //tft.setCursor(170, 274);
   //tft.println(lonFona);
+  tft.setCursor(20, 215);
 
-  tft.setCursor(0, 284);
-  tft.println("UBLOX:  LAT             LON");
-  tft.setCursor(70, 284);
+  if(controlState==HIGH)
+  {
+    tft.println(" AUTONOMOUS MODE");
+  }
+  if(controlState==LOW)
+  {
+    tft.println("   MANUAL MODE   ");
+  }
+  tft.setTextSize(4);
+  tft.setCursor(15, 240);
+  //tft.println("UBLOX:  LAT             LON");
+  //tft.setCursor(70, 284);
   tft.println(latitudeUblox);
-  tft.setCursor(170, 284);
+  tft.setCursor(15, 280);
   tft.println(longitudeUblox);
   
   tft.setTextSize(2);    
   tft.setCursor(0, 302);
-  tft.println("Direction:     ");
+  //tft.println("Direction:     ");
   tft.setCursor(170, 302);
   if(forwards==HIGH)
     {
-    tft.println("FORWARDS"); 
+    //tft.println("FORWARDS"); 
     }
   if(backwards==HIGH)
     {
-    tft.println("BACKWARDS");
+    //tft.println("BACKWARDS");
     }
-  tft.println(finalSteeringValue);
+  //tft.println(finalSteeringValue);
 
 } // updateTFT
 
@@ -1089,7 +1099,7 @@ void emicSpeech1()
   cmd = "S"; 
   text2 = ".. and this is the distance for the weedinator to travel.";
   text3 = "and the bearing is.";
-  textDistanceData = distanceMM;
+//  textDistanceData = distanceMM;
   //DEBUG_PORT.println("Emic Speech activated ");
   //DEBUG_PORT.print("Distance to travel: ");DEBUG_PORT.println(distanceMM);
   if(makeTurn == HIGH)
