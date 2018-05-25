@@ -1,3 +1,5 @@
+
+
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
 /* Put your LMU RAM fast access variables that have no initial values here e.g. uint32 LMU_var; */
@@ -12,9 +14,7 @@ EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
 StartOfInitialised_LMURam_Variables
-
 #include "TC275.h"
-
 float runningmaxCurrentValueFive = 1;
 float runningmaxCurrentValueSix = 1;
 float resultOne = 1.0000;
@@ -52,6 +52,9 @@ int clockW=LOW;
 int antiClockW=LOW;
 int stationary=LOW;
 int actuallySteering =LOW;
+
+int driveState=LOW; // Drive motors on/off
+
 EndOfInitialised_LMURam_Variables
 
 
@@ -68,6 +71,7 @@ void setup()
   pinMode(10,OUTPUT); //DIRECTION HIGH is clockwise
   pinMode(11,OUTPUT); //STEP Drive Motor
   pinMode(12,OUTPUT); //DIRECTION HIGH is clockwise
+  pinMode(25,INPUT_PULLUP); //Turn on/off drive motors
 
   #ifdef WEEDINATOR_SINGLE_CORE
     setup1();
@@ -76,6 +80,7 @@ void setup()
 }
 void loop()
 {  
+  driveState = digitalRead(25); // Drive motors on/off
   unsigned long currentMicrosOne = micros();
   unsigned long currentMicrosTwo = micros(); 
   unsigned long currentMicrosThree = micros();
@@ -98,7 +103,7 @@ else
 {
   stationary=LOW;
 }
-if (finalDriveValue>=550)  //Backwards.
+if ((finalDriveValue>=550)&&(driveState==HIGH))  //Backwards.
 {
   backwards = HIGH; forwards = LOW;
   intervalThree = (400000/finalDriveValue)-100; // 140 is max speed.
@@ -117,8 +122,13 @@ if (finalDriveValue>=550)  //Backwards.
     changeStateFour();
     digitalWrite(11,ledStateFour); // Drive motor step
   }
+}// Backwards
+else
+{
+  intervalThree = 1000000;
+  intervalFour =  1000000;
 }
-if (finalDriveValue<450)//Forwards.
+if ((finalDriveValue<450)&&(driveState==HIGH)) //Forwards.
 {
   backwards = LOW; forwards = HIGH;
   intervalThree = (finalDriveValue*1)+100; // 140 is max speed. Right hand wheel.
@@ -142,8 +152,12 @@ if (finalDriveValue<450)//Forwards.
     changeStateFour();
     digitalWrite(11,ledStateFour); // Drive motor step
   }
-}
-  
+}// Forwards
+else
+{
+  intervalThree = 1000000;
+  intervalFour =  1000000;
+}  
 //////////////////////////////////////////////////////////////////////////////////////////////////////
   difference = finalSteeringValue - previousFinalSteeringValue; // This gives actual movement of the steering.
 //////////////////////////////////////////////////////////////////////////////////////////////////////  
@@ -513,7 +527,7 @@ EndOfInitialised_CPU1_Variables
   
 void setup1() 
 {
-  pinMode(23,INPUT);
+  pinMode(23,INPUT_PULLUP); // Control state switch eg manual / autonomous
   intervalFive = 1000 / ACFrequency; // Milliseconds.
 }
 void loop1() 
@@ -555,7 +569,7 @@ void loop1()
   //ArduinoPwmFreq(4,390); // set PWM freq on pin 4 to 1 kHz
   //analogWrite(4,finalDriveValue/4);
 ///////////////////////////////////////////////////////////////////////////////////////  
-  controlState = digitalRead(23); // Autonomous mode on slide switch to 5V.
+  controlState = digitalRead(23); // Autonomous mode
   if(controlState==HIGH)
   {
     if((distanceMM<500)||(distanceMM>100000))
@@ -713,10 +727,10 @@ EndOfInitialised_LMURam_Variables
 void setup2() 
 {
   emicPort.begin( EMIC_BAUD );
-
+  
   DEBUG_PORT.begin( DEBUG_BAUD );
   DEBUG_PORT.println("TC275");
-
+  
   initNavData();
 
   if (useTFT) {
@@ -967,9 +981,9 @@ void updateTFT()
   tft.println(navData.waypointID());
   rectangle1 ();
   tft.setCursor(0, 190);
-  tft.println("Steering Val:     ");
+  tft.println("driveState:     ");
   tft.setCursor(160, 190);
-  tft.println(finalSteeringValue);
+  tft.println(driveState);
   
   tft.setCursor(0, 218);
   //tft.println("Difference:     ");
@@ -1111,13 +1125,14 @@ void emicSpeech1()
     text5 = " Make an anti clock wise turn. of ..";
   }
   text7 = "Start ";
+  int emicWaypoint = navData.waypointID()*1;
   if (navData.waypointID() != 0) {
-    text4 = "We are now going to way point " + navData.waypointID() +
+    text4 = "We are now going to way point " + emicWaypoint +
             text2 + distanceMM + " .. milli metres .. " +
             text3 + emicBearing/100 + " .. degrees .. " +
             text5 + makeTurnValue + " .. degrees";
   } else {
-    text4 = "No way point";
+    text4 = "Oh dear .. we do not have a way point yet";
   }
   text4 += " .. End of message .. ";
   text6 = "[:phone arpa speak on][:rate 190][:n0][ GAA<400,12>DD<200,15>B<200,10>LLEH<200,19>EH<500,22>S<200,18>AH<100,18>MEH<200,16>K<100,13>AH<200,12>][:n0]";
