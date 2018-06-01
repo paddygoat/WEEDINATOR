@@ -26,7 +26,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.70710678"
-     inkscape:cx="-144.09121"
+     inkscape:cx="636.27158"
      inkscape:cy="404.35086"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -124,7 +124,7 @@
          x="4.9435053"
          y="176.74287"
          style="stroke-width:0.19274087"
-         id="tspan4509">  &quot;weedingCommand&quot;:&quot;a&quot;,</tspan><tspan
+         id="tspan4509">  &quot;command&quot;:&quot;a&quot;,</tspan><tspan
          sodipodi:role="line"
          x="4.9435053"
          y="183.16757"
@@ -242,7 +242,7 @@
          x="89.771439"
          y="176.72694"
          style="stroke-width:0.19274087"
-         id="tspan4509-7">  ..... Tell the CNC machine to initiate a process .. 2 bytes</tspan><tspan
+         id="tspan4509-7">  ..... Various 'other' commands ........................ 2 bytes</tspan><tspan
          sodipodi:role="line"
          x="89.771439"
          y="183.15164"
