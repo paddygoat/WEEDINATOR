@@ -26,7 +26,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.70710678"
-     inkscape:cx="315.5282"
+     inkscape:cx="85.718496"
      inkscape:cy="404.35086"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -149,10 +149,15 @@
          x="4.9435053"
          y="208.86636"
          style="stroke-width:0.19274087"
-         id="tspan4493">}</tspan><tspan
+         id="tspan4555">  &quot;useGPS&quot;,&quot;0&quot;,</tspan><tspan
          sodipodi:role="line"
          x="4.9435053"
          y="215.29106"
+         style="stroke-width:0.19274087"
+         id="tspan4493">}</tspan><tspan
+         sodipodi:role="line"
+         x="4.9435053"
+         y="221.71576"
          style="stroke-width:0.19274087"
          id="tspan4495">6,533027200,-42398365,0,0,-25,0,20,0,a,0,10,0,0</tspan></text>
     <text
@@ -262,15 +267,20 @@
          x="89.771439"
          y="208.85043"
          style="stroke-width:0.19274087"
-         id="tspan4519-3" /><tspan
+         id="tspan4557">  ..... Use GPS for Bearing calculation ................. 1 byte</tspan><tspan
          sodipodi:role="line"
          x="89.771439"
          y="215.27513"
          style="stroke-width:0.19274087"
-         id="tspan4493-3" /><tspan
+         id="tspan4519-3" /><tspan
          sodipodi:role="line"
          x="89.771439"
          y="221.69983"
+         style="stroke-width:0.19274087"
+         id="tspan4493-3" /><tspan
+         sodipodi:role="line"
+         x="89.771439"
+         y="228.12453"
          style="stroke-width:0.19274087"
          id="tspan4495-6" /></text>
     <text
