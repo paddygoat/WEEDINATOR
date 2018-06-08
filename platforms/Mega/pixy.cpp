@@ -7,6 +7,7 @@
 #include <Arduino.h>
 #include <Pixy.h>
 static Pixy pixy;
+int32_t panError;
 
 #define X_CENTER        ((PIXY_MAX_X-PIXY_MIN_X)/2)
 #define Y_CENTER        ((PIXY_MAX_Y-PIXY_MIN_Y)/2)
@@ -39,7 +40,7 @@ void pixyModule()
   if (blocks)
   {
     digitalWrite(PIXY_PROCESSING,HIGH);
-    int32_t panError  = X_CENTER - pixy.blocks[0].x;
+    panError  = X_CENTER - pixy.blocks[0].x;
 
     int32_t tiltError = pixy.blocks[0].y - Y_CENTER;
 
@@ -70,21 +71,17 @@ void pixyModule()
       }
     }
 
-    // Overide compass module with object recognition:
     if (panError > 300)
     {
       DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
       DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-      //readCompass();
     }
-
-    compass = navData.bearing() + panError*0.2; // <-- OK???
 
   } else {
     // No blocks
     digitalWrite(PIXY_PROCESSING,LOW);
+    panError = 0;
   }
-  //readCompass();
 
   int trackedBlock = 0;
   maxSize = 0;

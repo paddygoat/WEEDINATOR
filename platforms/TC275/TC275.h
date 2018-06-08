@@ -14,15 +14,6 @@ const uint8_t MEGA_I2C_ADDR   = 26;
   #define WEEDINATOR_SINGLE_CORE
 
   #define SerialASC Serial
-
-  #define StartOfUninitialised_LMURam_Variables
-  #define EndOfUninitialised_LMURam_Variables
-  #define StartOfInitialised_LMURam_Variables
-  #define EndOfInitialised_LMURam_Variables
-  #define StartOfUninitialised_CPU1_Variables
-  #define EndOfUninitialised_CPU1_Variables
-  #define StartOfInitialised_CPU1_Variables
-  #define EndOfInitialised_CPU1_Variables
 #endif
 
 #if defined( SIMULATE_DEVICES )

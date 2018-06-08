@@ -1,4 +1,13 @@
-
+#ifdef ARDUINO_ARCH_AVR
+  #define StartOfUninitialised_LMURam_Variables
+  #define EndOfUninitialised_LMURam_Variables
+  #define StartOfInitialised_LMURam_Variables
+  #define EndOfInitialised_LMURam_Variables
+  #define StartOfUninitialised_CPU1_Variables
+  #define EndOfUninitialised_CPU1_Variables
+  #define StartOfInitialised_CPU1_Variables
+  #define EndOfInitialised_CPU1_Variables
+#endif
 
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
@@ -14,7 +23,9 @@ EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
 StartOfInitialised_LMURam_Variables
+
 #include "TC275.h"
+
 float runningmaxCurrentValueFive = 1;
 float runningmaxCurrentValueSix = 1;
 float resultOne = 1.0000;
@@ -727,10 +738,10 @@ EndOfInitialised_LMURam_Variables
 void setup2() 
 {
   emicPort.begin( EMIC_BAUD );
-  
+
   DEBUG_PORT.begin( DEBUG_BAUD );
   DEBUG_PORT.println("TC275");
-  
+
   initNavData();
 
   if (useTFT) {
@@ -922,6 +933,7 @@ void loop2()
           0x80, 0x96, 0x98, 0x00, // dist 10000000mm
           0x39, 0x30,             // bearing 123.45
           0x85, 0x1A,             // heading 67.89
+          0xEB, 0xFC, 0xFF, 0xFF, // panError -789
         };
       count = sizeof(example);
       memcpy( message, example, count );
@@ -930,16 +942,20 @@ void loop2()
     }
   }
 
-  navData.readFrom( message, count );
+  if (count > 0) {
+    navData.readFrom( message, count );
 
-  latitudeUblox  = navData.location().lat();
-  longitudeUblox = navData.location().lon();
+    latitudeUblox  = navData.location().lat();
+    longitudeUblox = navData.location().lon();
 
-  distanceMM     = navData.distance() * MM_PER_M;
-  headingDegrees = navData.heading();
-  bearingDegrees = navData.bearing();
+    distanceMM     = navData.distance() * MM_PER_M;
+    headingDegrees = navData.heading();
+    bearingDegrees = navData.bearing();
 
-  emicBearing    = bearingDegrees;
+    emicBearing    = bearingDegrees;
+    
+    // ??? = navData.panError(); ???
+  }
 
 } // loop2
 
