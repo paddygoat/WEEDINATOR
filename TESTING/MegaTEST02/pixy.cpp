@@ -7,10 +7,11 @@
 #include <Arduino.h>
 #include <Pixy2.h>
 #include <PIDLoop.h>
-int32_t panError;
+
 #define X_CENTER         (pixy.frameWidth/2)
 Pixy2 pixy;
 PIDLoop headingLoop(5000, 0, 0, false);
+int32_t panError; 
 ////////////////////////////////////////////////////////////////////////////
 
 void initPixy()
@@ -27,7 +28,6 @@ void pixyModule()
   if (not usePixy)
     return;
   int8_t res;
-  int32_t error; 
   int left, right;
   char buf[96];
   // Get latest data from Pixy, including main vector, new intersections and new barcodes.
@@ -42,7 +42,7 @@ void pixyModule()
     //pixy.line.vectors->print();
 
     // Perform PID calcs on heading error.
-    headingLoop.update(error);
+    headingLoop.update(panError);
   }
   //DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
 
