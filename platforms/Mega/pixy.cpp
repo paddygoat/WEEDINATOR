@@ -5,100 +5,56 @@
 #include "navdata.h"
 
 #include <Arduino.h>
-#include <Pixy.h>
-static Pixy pixy;
-int32_t panError;
+#include <Pixy2.h>
+#include <PIDLoop.h>
 
-#define X_CENTER        ((PIXY_MAX_X-PIXY_MIN_X)/2)
-#define Y_CENTER        ((PIXY_MAX_Y-PIXY_MIN_Y)/2)
-
-int oldSignature;  //  <-- what is this used for?  Never set, so always 0
-long maxSize;
-long newSize;
-
+#define X_CENTER         (pixy.frameWidth/2)
+Pixy2 pixy;
+PIDLoop headingLoop(5000, 0, 0, false);
+int32_t panError; 
+int32_t flagValue; 
 ////////////////////////////////////////////////////////////////////////////
 
 void initPixy()
 {
   digitalWrite(PIXY_PROCESSING,HIGH);
   pixy.init();
+  pixy.changeProg("line");
 }
 
 ////////////////////////////////////////////////////////////////////////////
-
+/* LINE_MODE_MANUAL_SELECT_VECTOR
+    Normally, the line tracking algorithm will choose what it thinks is the best Vector line automatically. 
+ *  Setting LINE_MODE_MANUAL_SELECT_VECTOR will prevent the line tracking algorithm from choosing the Vector automatically. 
+ *  Instead, your program will need to set the Vector by calling setVector(). _MODE_MANUAL_SELECT_VECTOR
+ *  uint8_t m_flags. This variable contains various flags that might be useful.
+ *  uint8_t m_x0. This variable contains the x location of the tail of the Vector or line. The value ranges between 0 and frameWidth (79) 3) 
+ *  int16_t m_angle . This variable contains the angle in degrees of the line.
+*/
 void pixyModule()
 {
   if (not usePixy)
     return;
-
-  static       uint8_t frameCount         = 0;
-  static const uint8_t PRINT_FRAME_PERIOD = 50;
-
-  static uint16_t blockCount = 0;
-         uint16_t blocks     = pixy.getBlocks();
-
-  if (blocks)
+  int8_t res;
+  int left, right;
+  char buf[96];
+  // Get latest data from Pixy, including main vector, new intersections and new barcodes.
+  res = pixy.line.getMainFeatures();
+  // We found the vector...
+  if (res&LINE_VECTOR)
   {
-    digitalWrite(PIXY_PROCESSING,HIGH);
-    panError  = X_CENTER - pixy.blocks[0].x;
+    // Calculate heading error with respect to m_x1, which is the far-end (head) of the vector,
+    // the part of the vector we're heading toward.
+    panError = (int32_t)pixy.line.vectors->m_x1 - (int32_t)X_CENTER;
+    flagValue = (int32_t)pixy.line.vectors->m_flags;
+    DEBUG_PORT.print( F("Flag Value:       ") );DEBUG_PORT.println(flagValue);
+    panError =  panError + 188;  // Cant send negative values.Lower value makes machine go anti clockwise.
+    pixy.line.vectors->print();
 
-    int32_t tiltError = pixy.blocks[0].y - Y_CENTER;
-
-    blockCount = blocks;
-
-    // do this (print) every so often frames because printing every
-    // frame would bog down the Arduino
-    frameCount++;
-    if (frameCount >= PRINT_FRAME_PERIOD)
-    {
-      frameCount = 0;
-      //DEBUG_PORT.print( F("Detected ") );
-      //DEBUG_PORT.print( blocks );
-      //DEBUG_PORT.println( ':' );
-
-      for (uint16_t j=0; j<blocks; j++)
-      {
-        long size = pixy.blocks[j].height * pixy.blocks[j].width;
-        DEBUG_PORT.print( F("No. of blocks: ") );DEBUG_PORT.println(blocks);
-        DEBUG_PORT.print( F("Block no.:     ") );DEBUG_PORT.println(j+1);
-        DEBUG_PORT.print( F("Size:          ") );DEBUG_PORT.println(size);
-        DEBUG_PORT.print( F("Max. size:     ") );DEBUG_PORT.println(maxSize);
-        DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
-        DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-
-        pixy.blocks[j].print();
-        DEBUG_PORT.println();
-      }
-    }
-
-    if (panError > 300)
-    {
-      DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
-      DEBUG_PORT.print( F("TILT POS:      ") );DEBUG_PORT.println(tiltError);
-    }
-
-  } else {
-    // No blocks
-    digitalWrite(PIXY_PROCESSING,LOW);
-    panError = 0;
+    // Perform PID calcs on heading error.
+    //headingLoop.update(panError);
   }
+  //DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
 
-  int trackedBlock = 0;
-  maxSize = 0;
-  for (int k = 0; k < blockCount; k++)
-  {
-    if ((oldSignature == 0) || (pixy.blocks[k].signature == oldSignature))
-    {
-      newSize = pixy.blocks[k].height * pixy.blocks[k].width;
-
-      if (newSize > maxSize)
-      {
-        //DEBUG_PORT.print( F("newSize:      ") );DEBUG_PORT.println(newSize);
-        trackedBlock = k;
-        maxSize = newSize;
-        //DEBUG_PORT.print( F("maxSize:      ") );DEBUG_PORT.println(maxSize);
-      }
-    }
-  }
 } // pixyModule
 

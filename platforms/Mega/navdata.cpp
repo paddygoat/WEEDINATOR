@@ -99,6 +99,9 @@ void updateNavData()
   DEBUG_PORT.print( F("Heading:         ") );
   DEBUG_PORT.println( navData.heading() );
 
+  DEBUG_PORT.print( F("Pixy2:           ") );
+  DEBUG_PORT.println( navData.panError() );
+
   DEBUG_PORT.println();
 
 } // updateNavData
@@ -128,6 +131,7 @@ void navData_t::printTo( uint8_t *bytes, size_t len )
       pieces.write( (uint8_t *) &_distance     , sizeof(_distance  ) );
       pieces.write( (uint8_t *) &_bearing      , sizeof(_bearing   ) );
       pieces.write( (uint8_t *) &_heading      , sizeof(_heading   ) );
+      pieces.write( (uint8_t *) &_panError     , sizeof(_panError  ) );
     interrupts();
 
     DEBUG_PORT.print( F("msg to send :  ") );
