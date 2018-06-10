@@ -583,15 +583,8 @@ void loop1()
   controlState = digitalRead(23); // Autonomous mode
   if(controlState==HIGH)
   {
-    if((distanceMM<500)||(distanceMM>100000))
-    {
-      finalDriveValue = 512; // waiting for new waypoint
-    }
-    if((distanceMM>500)&&(makeTurnValue<200)&&(makeTurnValue>-200))
-    {
-      steeringValue = makeTurnValue*10 + 512; // Adjust steering to compass sensitivity
+      steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
       finalSteeringValue = 30*steeringValue;
-    }
   }
   else
   {
@@ -709,6 +702,8 @@ String text7;
 String textDistanceData;
 String textBearingData;
 
+int pixyData;
+
 EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
@@ -781,27 +776,15 @@ void loop2()
       ledBlueState = LOW;
   }
   digitalWrite(37, ledBlueState);
-  makeTurnValue = bearingDegrees - headingDegrees;
-  if((makeTurnValue)>0)                                        // Does not work for quadrants one and four.
+  
+  makeTurnValue = pixyData - 180;
+  if((makeTurnValue)>0)
   {
     makeTurn = HIGH;
   }
   else
   {
     makeTurn = LOW;
-  }
-  
-  if((bearingDegrees>=0)&&(bearingDegrees<90)&&(headingDegrees>=270)&&(headingDegrees<360))  // Quadrants one and four makeTurn is reversed.
-  {
-    if((makeTurnValue)>0)
-    {
-      makeTurn = LOW;
-    }
-    else
-    {
-      makeTurn = HIGH;
-      makeTurnValue = 360 + makeTurnValue;
-    }
   }
 
 
@@ -869,14 +852,16 @@ void loop2()
   DEBUG_PORT.print("Final Drive Value= ");DEBUG_PORT.println(finalDriveValue);
   DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
   //DEBUG_PORT.print("analogueRead A1= ");DEBUG_PORT.println(driveValue);
-  DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
-  DEBUG_PORT.print("IntervalTwo= ");DEBUG_PORT.println(intervalTwo);
-  DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree);
-  DEBUG_PORT.print("IntervalFour= ");DEBUG_PORT.println(intervalFour);
+  //DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
+  //DEBUG_PORT.print("IntervalTwo= ");DEBUG_PORT.println(intervalTwo);
+  //DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree);
+  //DEBUG_PORT.print("IntervalFour= ");DEBUG_PORT.println(intervalFour);
   //DEBUG_PORT.print("velocityControlLeft= ");DEBUG_PORT.println(velocityControlLeft);
   //DEBUG_PORT.print("velocityControlRight= ");DEBUG_PORT.println(velocityControlRight); 
   //DEBUG_PORT.print("ATSDState= ");DEBUG_PORT.println(ATSDState);
-  DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
+  //DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
+  //DEBUG_PORT.print("Pixy data  = ");DEBUG_PORT.println(navData.panError());
+  DEBUG_PORT.print("Pixy data  = ");DEBUG_PORT.println(pixyData);  
   
   
   if(forwards==HIGH)
@@ -954,7 +939,7 @@ void loop2()
 
     emicBearing    = bearingDegrees;
     
-    // ??? = navData.panError(); ???
+    pixyData = navData.panError();
   }
 
 } // loop2
@@ -976,9 +961,9 @@ void updateTFT()
   tft.setTextColor(ILI9341_GREEN);
   tft.setTextSize(2);
   tft.setCursor(0, 72);
-  tft.println("Compass:  "); 
+  tft.println("Heading:    "); 
   tft.setCursor(110, 72);
-  tft.println(headingDegrees); 
+  tft.println(headingDegrees);
   tft.setCursor(185, 67);
   tft.println("o"); 
   tft.setCursor(0, 102);
@@ -997,9 +982,9 @@ void updateTFT()
   tft.println(navData.waypointID());
   rectangle1 ();
   tft.setCursor(0, 190);
-  tft.println("driveState:     ");
+  tft.println("Pixy Data:     ");
   tft.setCursor(160, 190);
-  tft.println(driveState);
+  tft.println(pixyData);
   
   tft.setCursor(0, 218);
   //tft.println("Difference:     ");
