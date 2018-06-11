@@ -64,7 +64,7 @@ int antiClockW=LOW;
 int stationary=LOW;
 int actuallySteering =LOW;
 
-int driveState=LOW; // Drive motors on/off
+int navState=LOW; // Drive motors on/off
 
 EndOfInitialised_LMURam_Variables
 
@@ -91,7 +91,7 @@ void setup()
 }
 void loop()
 {  
-  driveState = digitalRead(25); // Drive motors on/off
+  navState = digitalRead(25); // Drive motors on/off
   unsigned long currentMicrosOne = micros();
   unsigned long currentMicrosTwo = micros(); 
   unsigned long currentMicrosThree = micros();
@@ -114,7 +114,7 @@ else
 {
   stationary=LOW;
 }
-if ((finalDriveValue>=550)&&(driveState==HIGH))  //Backwards.
+if (finalDriveValue>=550)  //Backwards.
 {
   backwards = HIGH; forwards = LOW;
   intervalThree = (400000/finalDriveValue)-100; // 140 is max speed.
@@ -139,7 +139,7 @@ else
   intervalThree = 1000000;
   intervalFour =  1000000;
 }
-if ((finalDriveValue<450)&&(driveState==HIGH)) //Forwards.
+if (finalDriveValue<450) //Forwards.
 {
   backwards = LOW; forwards = HIGH;
   intervalThree = (finalDriveValue*1)+100; // 140 is max speed. Right hand wheel.
@@ -776,8 +776,15 @@ void loop2()
       ledBlueState = LOW;
   }
   digitalWrite(37, ledBlueState);
-  
-  makeTurnValue = pixyData - 180;
+if(navState==HIGH)
+  { 
+    makeTurnValue = pixyData - 180;   // Pixy
+  }
+else
+  {
+    makeTurnValue = bearingDegrees - headingDegrees;  // GPS
+  }
+
   if((makeTurnValue)>0)
   {
     makeTurn = HIGH;
@@ -1003,16 +1010,26 @@ void updateTFT()
   //tft.println(latFona);
   //tft.setCursor(170, 274);
   //tft.println(lonFona);
-  tft.setCursor(20, 215);
-
+  tft.setCursor(5, 215);
+/////////////////////////////////////////////////////////////
   if(controlState==HIGH)
   {
-    tft.println(" AUTONOMOUS MODE");
+    tft.println("  AUTO");
   }
-  if(controlState==LOW)
+  else
   {
-    tft.println("   MANUAL MODE   ");
+    tft.println(" MANUAL");
+  } 
+  tft.setCursor(60, 215);  
+  if(navState==HIGH)
+  {
+    tft.println("   * PIXY");
   }
+  else
+  {
+    tft.println("   * GPS");
+  }
+//////////////////////////////////////////////////////////////
   tft.setTextSize(4);
   tft.setCursor(15, 240);
   //tft.println("UBLOX:  LAT             LON");
