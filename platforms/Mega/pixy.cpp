@@ -13,6 +13,8 @@ Pixy2 pixy;
 PIDLoop headingLoop(5000, 0, 0, false);
 int32_t panError; 
 int32_t flagValue; 
+int32_t barcodeValue;
+int8_t i;
 ////////////////////////////////////////////////////////////////////////////
 
 void initPixy()
@@ -39,7 +41,8 @@ void pixyModule()
   int left, right;
   char buf[96];
   // Get latest data from Pixy, including main vector, new intersections and new barcodes.
-  res = pixy.line.getMainFeatures();
+  // res =   pixy.line.getAllFeatures();
+  res =   pixy.line.getMainFeatures();
   // We found the vector...
   if (res&LINE_VECTOR)
   {
@@ -47,14 +50,20 @@ void pixyModule()
     // the part of the vector we're heading toward.
     panError = (int32_t)pixy.line.vectors->m_x1 - (int32_t)X_CENTER;
     flagValue = (int32_t)pixy.line.vectors->m_flags;
-    DEBUG_PORT.print( F("Flag Value:       ") );DEBUG_PORT.println(flagValue);
-    panError =  panError + 188;  // Cant send negative values.Lower value makes machine go anti clockwise.
-    pixy.line.vectors->print();
+
+    
+    //DEBUG_PORT.print( F("Flag Value:       ") );DEBUG_PORT.println(flagValue);
+    panError =  panError + 185;  // Lower value makes machine go anti clockwise.
+    //pixy.line.vectors->print();
 
     // Perform PID calcs on heading error.
     //headingLoop.update(panError);
   }
+  if (res&LINE_BARCODE)
+  {
+    barcodeValue = (int32_t)pixy.line.barcodes->m_y;
+  }
   //DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
-
+  DEBUG_PORT.print( F("Barcode Y position value:    ") );DEBUG_PORT.println(barcodeValue);
 } // pixyModule
 
