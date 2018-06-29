@@ -702,7 +702,8 @@ String text7;
 String textDistanceData;
 String textBearingData;
 
-int pixyData;
+int pixyPanData;
+int pixyBarData;
 
 EndOfUninitialised_LMURam_Variables
 
@@ -778,7 +779,7 @@ void loop2()
   digitalWrite(37, ledBlueState);
 if(navState==HIGH)
   { 
-    makeTurnValue = pixyData - 180;   // Pixy
+    makeTurnValue = pixyPanData - 180;   // Pixy
   }
 else
   {
@@ -867,9 +868,8 @@ else
   //DEBUG_PORT.print("velocityControlRight= ");DEBUG_PORT.println(velocityControlRight); 
   //DEBUG_PORT.print("ATSDState= ");DEBUG_PORT.println(ATSDState);
   //DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
-  //DEBUG_PORT.print("Pixy data  = ");DEBUG_PORT.println(navData.panError());
-  DEBUG_PORT.print("Pixy data  = ");DEBUG_PORT.println(pixyData);  
-  
+  DEBUG_PORT.print("Pixy pan data  = ");DEBUG_PORT.println(pixyPanData);
+  DEBUG_PORT.print("Pixy bar data  = ");DEBUG_PORT.println(pixyBarData);
   
   if(forwards==HIGH)
     {
@@ -946,7 +946,8 @@ else
 
     emicBearing    = bearingDegrees;
     
-    pixyData = navData.panError();
+    pixyPanData = navData.panError();
+    pixyBarData = navData.barcodeValue();
   }
 
 } // loop2
@@ -989,10 +990,12 @@ void updateTFT()
   tft.println(navData.waypointID());
   rectangle1 ();
   tft.setCursor(0, 190);
-  tft.println("Pixy Data:     ");
-  tft.setCursor(160, 190);
-  tft.println(pixyData);
-  
+  tft.println("Pixy pan:    bar:  ");
+  tft.setCursor(110, 190);
+  tft.println(pixyPanData);
+  tft.setCursor(210, 190);
+  tft.println(pixyBarData);
+    
   tft.setCursor(0, 218);
   //tft.println("Difference:     ");
   tft.setCursor(170, 218);
@@ -1014,20 +1017,20 @@ void updateTFT()
 /////////////////////////////////////////////////////////////
   if(controlState==HIGH)
   {
-    tft.println("  AUTO");
+    tft.println("    AUTO");
   }
   else
   {
-    tft.println(" MANUAL");
+    tft.println("   MANUAL");
   } 
   tft.setCursor(60, 215);  
   if(navState==HIGH)
   {
-    tft.println("   * PIXY");
+    tft.println("     * PIXY");
   }
   else
   {
-    tft.println("   * GPS");
+    tft.println("     * GPS");
   }
 //////////////////////////////////////////////////////////////
   tft.setTextSize(4);
@@ -1112,7 +1115,7 @@ void emicIntro()
   while (emicPort.read() != ':');
   // 'S' command = say 
   cmd = "S"; 
-  text1 = "hello world. welcome to the weedinator. Lets go smash the fuck out of some weeds.";
+  text1 = "hello world. welcome to the weedinator. Lets go smash the crap out of some weeds.";
   emicPort.print(cmd + text1 + "\n");
   ; 
 }

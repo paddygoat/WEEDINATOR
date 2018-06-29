@@ -16,8 +16,9 @@ const size_t navData_t::MSG_SIZE =
   sizeof( navData_t::_distance      ) +
   sizeof( navData_t::_bearing       ) +
   sizeof( navData_t::_heading       ) +
-  sizeof( navData_t::_panError      );
-
+  sizeof( navData_t::_panError      ) +
+  sizeof( navData_t::_barcodeValue      );
+  
 ////////////////////////////////////////////////////////////////////////////
 
 void initNavData()
@@ -56,6 +57,7 @@ void navData_t::readFrom( uint8_t *bytes, size_t len )
       pieces.readBytes( (uint8_t *) &_bearing      , sizeof(_bearing   ) );
       pieces.readBytes( (uint8_t *) &_heading      , sizeof(_heading   ) );
       pieces.readBytes( (uint8_t *) &_panError     , sizeof(_panError  ) );
+      pieces.readBytes( (uint8_t *) &_barcodeValue     , sizeof(_barcodeValue  ) );
     interrupts();
 
     DEBUG_PORT.print( F("msg received:  ") );
@@ -74,6 +76,8 @@ void navData_t::readFrom( uint8_t *bytes, size_t len )
     DEBUG_PORT.println( heading() );
     DEBUG_PORT.print( F("panError: ") );
     DEBUG_PORT.println( panError() );
+    DEBUG_PORT.print( F("barcodeValue: ") );
+    DEBUG_PORT.println( barcodeValue() );
     DEBUG_PORT.print( F("distance: ") );
     DEBUG_PORT.println( distance() );
   }
