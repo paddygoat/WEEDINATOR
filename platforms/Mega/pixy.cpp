@@ -41,8 +41,8 @@ void pixyModule()
   int left, right;
   char buf[96];
   // Get latest data from Pixy, including main vector, new intersections and new barcodes.
-  // res =   pixy.line.getAllFeatures();
-  res =   pixy.line.getMainFeatures();
+  res =   pixy.line.getAllFeatures();
+  //res =   pixy.line.getMainFeatures();
   // We found the vector...
   if (res&LINE_VECTOR)
   {
@@ -59,10 +59,12 @@ void pixyModule()
     // Perform PID calcs on heading error.
     //headingLoop.update(panError);
   }
+  
   if (res&LINE_BARCODE)
   {
     barcodeValue = (int32_t)pixy.line.barcodes->m_y;
   }
+  
   //DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
   DEBUG_PORT.print( F("Barcode Y position value:    ") );DEBUG_PORT.println(barcodeValue);
 } // pixyModule

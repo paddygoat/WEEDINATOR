@@ -7,5 +7,6 @@ extern void initPixy();
 extern void pixyModule();
 
 extern int32_t panError;
+extern int32_t barcodeValue;
 
 #endif
