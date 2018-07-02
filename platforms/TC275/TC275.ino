@@ -768,6 +768,7 @@ void setup2()
 
 void loop2() 
 {
+  tone(2,pixyBarData*20);   // pin,pitch,duration
   digitalWrite(39,LOW); // Orange LED
   if (ledBlueState == LOW) 
   {
@@ -797,7 +798,7 @@ else
 
 
   
-  delay(200);
+  //delay(200);
   unsigned long currentMillisCore3 = millis();
   millisCalc1 = currentMillisCore3 - previousMillis1Core3; // Emic speech
   millisCalc2 = currentMillisCore3 - previousMillis2Core3; // TFT screen
