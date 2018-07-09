@@ -22,6 +22,7 @@ private:
   uint16_t           _bearing   ; // degrees * 100 (degrees in accessor/mutator)
   uint16_t           _heading   ; // degrees * 100 (degrees in accessor/mutator)
   int32_t            _panError;
+  int32_t            _barcode;
   int32_t            _barcodeValue;
   
 public:
@@ -33,6 +34,7 @@ public:
       _bearing   (0),
       _heading   (0),
       _panError  (0),
+      _barcode   (0),
       _barcodeValue  (0)
     {}
 
@@ -42,6 +44,7 @@ public:
         float    bearing () const { return 0.01 * _bearing; } // degrees
         float    heading () const { return 0.01 * _heading; } // degrees
         int32_t  panError() const { return _panError      ; }
+        int32_t  barcode() const { return _barcode      ; }
         int32_t  barcodeValue() const { return _barcodeValue      ; }
         float    distance() const { return _distance / MM_PER_M; } // m
 
@@ -50,6 +53,7 @@ public:
   void location  ( const NeoGPS::Location_t & loc ) { _location   = loc; }
   void bearing   ( float    degrees  ) { _bearing = (degrees * 100.0    + 0.5); }
   void panError  ( uint32_t panError ) { _panError = panError; }
+  void barcode  ( uint32_t barcode ) { _barcode = barcode; }
   void barcodeValue  ( uint32_t barcodeValue ) { _barcodeValue = barcodeValue; }
   void heading   ( float    degrees  ) { _heading = (degrees * 100.0    + 0.5); }
   void distance  ( float    meters   )

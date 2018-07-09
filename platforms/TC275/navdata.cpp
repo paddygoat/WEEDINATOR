@@ -17,6 +17,7 @@ const size_t navData_t::MSG_SIZE =
   sizeof( navData_t::_bearing       ) +
   sizeof( navData_t::_heading       ) +
   sizeof( navData_t::_panError      ) +
+  sizeof( navData_t::_barcode       ) +
   sizeof( navData_t::_barcodeValue      );
   
 ////////////////////////////////////////////////////////////////////////////
@@ -57,28 +58,31 @@ void navData_t::readFrom( uint8_t *bytes, size_t len )
       pieces.readBytes( (uint8_t *) &_bearing      , sizeof(_bearing   ) );
       pieces.readBytes( (uint8_t *) &_heading      , sizeof(_heading   ) );
       pieces.readBytes( (uint8_t *) &_panError     , sizeof(_panError  ) );
+      pieces.readBytes( (uint8_t *) &_barcode      , sizeof(_barcode  ) );
       pieces.readBytes( (uint8_t *) &_barcodeValue     , sizeof(_barcodeValue  ) );
     interrupts();
 
-    DEBUG_PORT.print( F("msg received:  ") );
-    showData( bytes, len );
-    DEBUG_PORT.println();
+//    DEBUG_PORT.print( F("msg received:  ") );
+//    showData( bytes, len );
+//    DEBUG_PORT.println();
 
-    DEBUG_PORT.print( F("id      : ") );
-    DEBUG_PORT.println( waypointID() );
-    DEBUG_PORT.print( F("lat     : ") );
-    DEBUG_PORT.println( location().lat() );
-    DEBUG_PORT.print( F("lon     : ") );
-    DEBUG_PORT.println( location().lon() );
-    DEBUG_PORT.print( F("bearing : ") );
-    DEBUG_PORT.println( bearing() );
-    DEBUG_PORT.print( F("heading : ") );
-    DEBUG_PORT.println( heading() );
-    DEBUG_PORT.print( F("panError: ") );
-    DEBUG_PORT.println( panError() );
-    DEBUG_PORT.print( F("barcodeValue: ") );
-    DEBUG_PORT.println( barcodeValue() );
-    DEBUG_PORT.print( F("distance: ") );
-    DEBUG_PORT.println( distance() );
+//    DEBUG_PORT.print( F("id      : ") );
+//    DEBUG_PORT.println( waypointID() );
+//    DEBUG_PORT.print( F("lat     : ") );
+//    DEBUG_PORT.println( location().lat() );
+//    DEBUG_PORT.print( F("lon     : ") );
+//    DEBUG_PORT.println( location().lon() );
+//    DEBUG_PORT.print( F("bearing : ") );
+//    DEBUG_PORT.println( bearing() );
+//    DEBUG_PORT.print( F("heading : ") );
+//    DEBUG_PORT.println( heading() );
+//    DEBUG_PORT.print( F("panError: ") );
+//    DEBUG_PORT.println( panError() );
+//    DEBUG_PORT.print( F("barcode: ") );
+//    DEBUG_PORT.println( barcode() );
+//    DEBUG_PORT.print( F("barcodeValue: ") );
+//    DEBUG_PORT.println( barcodeValue() );
+//    DEBUG_PORT.print( F("distance: ") );
+//    DEBUG_PORT.println( distance() );
   }
 } // readFrom

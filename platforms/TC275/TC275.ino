@@ -19,6 +19,9 @@ float maxCurrentValueSix;
 float resultTwo;
 float resultThree;
 float resultFour;
+int pixyBarData;
+int pixyBarcode;
+
 EndOfUninitialised_LMURam_Variables
 
 /* LMU uninitialised data */
@@ -34,16 +37,20 @@ int ledStateOne = LOW;
 int ledStateTwo = LOW;   
 int ledStateThree = LOW;
 int ledStateFour = LOW;
+int stateSeven = LOW;
 
 unsigned long previousMicrosOne = 0;
 unsigned long previousMicrosTwo = 0;
 unsigned long previousMicrosThree = 0;
 unsigned long previousMicrosFour = 0;
+unsigned long previousMillisSeven = 0;
 
 float intervalOne = 1000; // Right hand wheel turn speed. Bigger is faster.
 float intervalTwo = 1000; // Left hand wheel turn speed.
 float intervalThree = 1000; // Right hand wheel drive speed. Is this left wheel?
 float intervalFour = 1000; // Left hand wheel drive speed.
+int intervalOperateCNC = 10000; // CNC timer.
+int intervalMoveSlightlyForwards = 2000; // Move slightly forwards after CNC action timer.
 
 int difference=0;
 int previousFinalSteeringValue=15300;
@@ -64,7 +71,36 @@ int antiClockW=LOW;
 int stationary=LOW;
 int actuallySteering =LOW;
 
-int navState=LOW; // Drive motors on/off
+int controlState = LOW;  // Manual or autonomous(HGH)
+int navState=LOW;        // Use Pixy or GPS
+int barcodeState=LOW;    // Use barcodes or not. Drive potentiometer will be overridden when high.
+//int pixyBarData=0;
+
+int dirStateCNCX = LOW; 
+int dirStateCNCY = LOW; 
+int dirStateCNCZ = LOW;
+int dirStateCNCR = LOW; 
+int speedCNCX = 1000;
+int speedCNCY = 1000;
+int speedCNCZ = 1000;
+int speedCNCR = 1000;
+int stepStateCNCX = LOW;
+int stepStateCNCY = LOW;
+int stepStateCNCZ = LOW;
+int stepStateCNCR = LOW;
+int LSFX = HIGH;          // Switch open x axis.
+int LSBX = HIGH;
+int LSRY = HIGH;          // Switch open y axis. LSRY = limit switch right y.
+int LSLY = HIGH;
+unsigned long previousMicrosCNCX = 0; 
+unsigned long previousMicrosCNCY = 0; 
+unsigned long previousMicrosCNCZ = 0;
+unsigned long previousMicrosCNCR = 0; 
+float intervalCNCX = 0;
+unsigned long intervalCNCY = 0;
+unsigned long intervalCNCZ = 0;
+unsigned long intervalCNCR = 0;
+
 
 EndOfInitialised_LMURam_Variables
 
@@ -82,16 +118,126 @@ void setup()
   pinMode(10,OUTPUT); //DIRECTION HIGH is clockwise
   pinMode(11,OUTPUT); //STEP Drive Motor
   pinMode(12,OUTPUT); //DIRECTION HIGH is clockwise
-  pinMode(25,INPUT_PULLUP); //Turn on/off drive motors
 
+  pinMode(39, OUTPUT);   // ORANGE LED 
+  digitalWrite(39,LOW); 
+
+  pinMode(35, OUTPUT);   // Step x axis
+  digitalWrite(35,LOW);
+  pinMode(53, OUTPUT);   // Direction x axis, LOW is forwards
+  digitalWrite(53,LOW);
+  pinMode(33, OUTPUT);   // Step y axis
+  digitalWrite(33,LOW);
+  pinMode(51, OUTPUT);   // Direction y axis, LOW is forwards
+  digitalWrite(51,LOW);
+  pinMode(31, OUTPUT);   // Step z axis
+  pinMode(27, OUTPUT);   // Direction z axis, LOW is forwards
+  pinMode(29, OUTPUT);   // Step r axis
+  
+  pinMode(25,INPUT_PULLUP);    // Turn on/off drive motors
+  pinMode(23,INPUT_PULLUP);    // Control state switch eg manual / autonomous
+  
+  pinMode(49,INPUT_PULLUP);    // Limit switch forwards X
+  pinMode(47,INPUT_PULLUP);    // Limit switch backwards X
+  pinMode(45,INPUT_PULLUP);    // Limit switch right Y
+  pinMode(43,INPUT_PULLUP);    // Limit switch left Y
+  pinMode(41,INPUT_PULLUP);    // Limit switch upwards Z (no limit switch on down)
+  
+  delay(5000);
+  
   #ifdef WEEDINATOR_SINGLE_CORE
     setup1();
     setup2();
   #endif
 }
+///////////////////////////////////////////////////////////////////////////////////////////
+void CNC()
+{
+  unsigned long currentMicros = micros();
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCX = 10;                                  // 1 = one Hz.
+  dirStateCNCX = LOW;                             // HIGH is to the RIGHT.
+
+  // controlState==HIGH is autonomous mode.
+
+  if((LSFX==HIGH)&&(LSBX==HIGH)&&(controlState==HIGH))     // Forwards and backwards switch open.
+  {
+    intervalCNCX = 1000000/speedCNCX;               // interval is smaller for faster speed.
+    if ((currentMicros - previousMicrosCNCX) >= intervalCNCX)
+    {
+      DEBUG_PORT.println("");
+      DEBUG_PORT.print("stepStateCNCX  = ");DEBUG_PORT.println(stepStateCNCX);
+
+      if (stepStateCNCX == LOW)
+      {
+        stepStateCNCX = HIGH;
+      }
+      else
+      {
+        stepStateCNCX = LOW;
+      }
+      digitalWrite(53,dirStateCNCX);                // Was 53.
+      digitalWrite(35,stepStateCNCX);               // Was 35.
+      digitalWrite(39,stepStateCNCX);               // Orange LED
+      previousMicrosCNCX = currentMicros;
+    }
+  }
+  else
+  {
+    digitalWrite(35,LOW);
+  }
+} // CNC
+/////////////////////////////////////////////////////////////////////////////////////////
 void loop()
 {  
-  navState = digitalRead(25); // Drive motors on/off
+  navState = digitalRead(25);                      // switch for Pixy / GPS.
+  controlState = digitalRead(23);                  // switch for autonomous mode.
+  LSFX = digitalRead(49);                          // Limit switch X forwards
+  LSBX = digitalRead(47);                          // Limit switch X backwards
+  LSRY = digitalRead(45);                          // Limit switch Y right.
+  //LSLY = Fast_digitalRead(43);                          // Limit switch Y left.
+  
+  //if((LSFX==LOW)||(LSBX==LOW))                     // switches closed
+  //{
+    //DEBUG_PORT.println("One of the X switches is closed");
+    //digitalWrite(39,HIGH);                             // ORANGE LED 
+  //}
+  //else
+  //{
+    //DEBUG_PORT.println("X switches open");
+    //digitalWrite(39,LOW);                              // ORANGE LED 
+  //}
+  
+  CNC();  // Else     digitalWrite(35,LOW);
+  // Might want to move digital reads to core1.
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+  unsigned long currentMillisSeven = millis();
+  if((navState==HIGH)&&(controlState==HIGH)&&(pixyBarcode==3))                // Vehicle sees a barcode of type '3'.
+  {
+    barcodeState=HIGH;                                                        // Potentiometer is overridden.
+    if(stateSeven==LOW)
+    {
+      previousMillisSeven = currentMillisSeven;
+      finalDriveValue=440;                                                  // Machine moves slowly forwards.
+    }
+    if(((currentMillisSeven - previousMillisSeven) < intervalOperateCNC)&&(pixyBarData>40))  // Wait for a while for CNC task to complete.
+    {
+      stateSeven=HIGH;
+      finalDriveValue=500;                                                   // Machine is stationary.
+      // CNC mechanism does some work.
+    }
+    else
+    {
+      finalDriveValue=440;                                                    // Moves slowly forwards away from barcode until it vanishes.        
+    }
+  }
+  else
+  {
+    stateSeven = LOW;
+    previousMillisSeven = currentMillisSeven;
+    barcodeState=LOW;                                // Potentiometer is enabled again.
+  }
+//////////////////////////////////////////////////////////////////////////////////////////////////////  
   unsigned long currentMicrosOne = micros();
   unsigned long currentMicrosTwo = micros(); 
   unsigned long currentMicrosThree = micros();
@@ -523,7 +669,6 @@ int k=0;
 int m=0;
 int makeTurnValue =0;
 long distanceMM =0;
-int controlState = LOW;
 int ic=0;
 int icMax =0;
 unsigned long currentMillis = 0;
@@ -538,7 +683,6 @@ EndOfInitialised_CPU1_Variables
   
 void setup1() 
 {
-  pinMode(23,INPUT_PULLUP); // Control state switch eg manual / autonomous
   intervalFive = 1000 / ACFrequency; // Milliseconds.
 }
 void loop1() 
@@ -575,13 +719,16 @@ void loop1()
     driveValue = driveValue + analogRead(A1);
     k++;
   }
-  finalDriveValue = driveValue/k;
+  if(barcodeState==LOW)  // If a barcode is spotted, main motor drive is affected, see core 0.
+  {
+    finalDriveValue = driveValue/k;
+  }
 ////////////////////////////////////////////////////////////////////////////////////////
   //ArduinoPwmFreq(4,390); // set PWM freq on pin 4 to 1 kHz
   //analogWrite(4,finalDriveValue/4);
 ///////////////////////////////////////////////////////////////////////////////////////  
-  controlState = digitalRead(23); // Autonomous mode
-  if(controlState==HIGH)
+  //controlState = digitalRead(23); 
+  if(controlState==HIGH)                // Autonomous mode
   {
       steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
       finalSteeringValue = 30*steeringValue;
@@ -703,7 +850,6 @@ String textDistanceData;
 String textBearingData;
 
 int pixyPanData;
-int pixyBarData;
 
 EndOfUninitialised_LMURam_Variables
 
@@ -756,9 +902,7 @@ void setup2()
   noTone(2);
 
   pinMode(37, OUTPUT);   // BLUE LED
-  pinMode(39, OUTPUT);   // ORANGE LED 
   digitalWrite(37,LOW);
-  digitalWrite(39,LOW); 
 
   while (emicPort.available()) 
   {
@@ -769,7 +913,7 @@ void setup2()
 void loop2() 
 {
   tone(2,pixyBarData*20);   // pin,pitch,duration
-  digitalWrite(39,LOW); // Orange LED
+  //digitalWrite(39,LOW); // Orange LED
   if (ledBlueState == LOW) 
   {
       ledBlueState = HIGH;
@@ -823,7 +967,7 @@ else
   }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 
   
-  if (millisCalc3 >= 2000)                            // timer
+  if (millisCalc3 >= 4000)                            // timer
   {  
     previousMillis3Core3=currentMillisCore3; 
 
@@ -831,15 +975,15 @@ else
      //int radiusRatio =3;
      //intervalThree =  (1/(1/intervalThree) - (1/(intervalOne*radiusRatio))); // Makes right hand inside wheel drive a bit slower.
      //resultOne =  1/intervalThree;
-     DEBUG_PORT.print("resultOne: ");DEBUG_PORT.println(resultOne,8);
+     //DEBUG_PORT.print("resultOne: ");DEBUG_PORT.println(resultOne,8);
      //resultTwo = intervalOne*radiusRatio;
-     DEBUG_PORT.print("resultTwo: ");DEBUG_PORT.println(resultTwo);
+     //DEBUG_PORT.print("resultTwo: ");DEBUG_PORT.println(resultTwo);
      //resultThree = 1/resultTwo;
-     DEBUG_PORT.print("resultThree: ");DEBUG_PORT.println(resultThree,8);
+     //DEBUG_PORT.print("resultThree: ");DEBUG_PORT.println(resultThree,8);
      //resultFour = resultTwo - resultThree;
-     DEBUG_PORT.print("resultFour: ");DEBUG_PORT.println(resultFour,8);
+     //DEBUG_PORT.print("resultFour: ");DEBUG_PORT.println(resultFour,8);
      //intervalThree = 1/resultFour;
-     DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
+     //DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
     
   DEBUG_PORT.println();
   DEBUG_PORT.print("LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
@@ -949,6 +1093,7 @@ else
     
     pixyPanData = navData.panError();
     pixyBarData = navData.barcodeValue();
+    pixyBarcode = navData.barcode();
   }
 
 } // loop2
@@ -989,6 +1134,8 @@ void updateTFT()
   tft.println("Waypoint:            ");
   tft.setCursor(110, 160);
   tft.println(navData.waypointID());
+  tft.setCursor(150, 160);
+  tft.println(pixyBarcode);
   rectangle1 ();
   tft.setCursor(0, 190);
   tft.println("Pixy pan:    bar:  ");
