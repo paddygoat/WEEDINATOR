@@ -88,19 +88,32 @@ int stepStateCNCX = LOW;
 int stepStateCNCY = LOW;
 int stepStateCNCZ = LOW;
 int stepStateCNCR = LOW;
-int LSFX = HIGH;          // Switch open x axis.
-int LSBX = HIGH;
-int LSRY = HIGH;          // Switch open y axis. LSRY = limit switch right y.
-int LSLY = HIGH;
-unsigned long previousMicrosCNCX = 0; 
-unsigned long previousMicrosCNCY = 0; 
-unsigned long previousMicrosCNCZ = 0;
-unsigned long previousMicrosCNCR = 0; 
-float intervalCNCX = 0;
-unsigned long intervalCNCY = 0;
-unsigned long intervalCNCZ = 0;
-unsigned long intervalCNCR = 0;
+uint8_t LSFX = LOW;          // Switch open x axis.
+uint8_t LSBX = HIGH;
+uint8_t LSRY = HIGH;          // Switch open y axis. LSRY = limit switch right y.
+uint8_t LSLY = HIGH;
+uint8_t LSUZ = HIGH;
+unsigned long prevMicrosCNCXOne = 0; 
+unsigned long prevMicrosCNCYOne = 0; 
+unsigned long prevMicrosCNCZOne = 0; 
+unsigned long prevMicrosCNCROne = 0; 
+float intervalCNCXOne = 0;
+float intervalCNCYOne = 0;
+float intervalCNCZOne = 0;
+float intervalCNCROne = 0;
+int XZeroingState = LOW;
+int YZeroingState = LOW;
+int ZZeroingState = LOW;
+long XZeroingStepsTotal = 1000;
+long YZeroingStepsTotal = 1000;
+long ZZeroingStepsTotal = 1000;
+int XZeroingStep = 0;
+int YZeroingStep = 0;
+int ZZeroingStep = 0;
 
+uint8_t setupStateX = LOW;           // Change to HIGH to skip CNC setups.
+uint8_t setupStateY = LOW;
+uint8_t setupStateZ = LOW;
 
 EndOfInitialised_LMURam_Variables
 
@@ -150,24 +163,113 @@ void setup()
     setup2();
   #endif
 }
-///////////////////////////////////////////////////////////////////////////////////////////
-void CNC()
-{
-  unsigned long currentMicros = micros();
+void CNC_SETUP_Z()
+{  
 //////////////////////////////////////////////////////////////////////////////////////////
-  speedCNCX = 10;                                  // 1 = one Hz.
-  dirStateCNCX = LOW;                             // HIGH is to the RIGHT.
+  speedCNCZ = 2000;                                         // 1 = one Hz.
+  ZZeroingStepsTotal = 24000;
+  dirStateCNCZ = LOW;                                       // LOW is upwards ?
 
   // controlState==HIGH is autonomous mode.
-
-  if((LSFX==HIGH)&&(LSBX==HIGH)&&(controlState==HIGH))     // Forwards and backwards switch open.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(ZZeroingState==LOW))            // Upwards switch open.
   {
-    intervalCNCX = 1000000/speedCNCX;               // interval is smaller for faster speed.
-    if ((currentMicros - previousMicrosCNCX) >= intervalCNCX)
+    ZZeroingStep=0;
+    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
+    CNC_TIMER_Z();
+  }
+  else
+  {
+    digitalWrite(31,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSUZ==HIGH)&&(controlState==HIGH))                       // Z axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCZ = HIGH;                                       // go up along Z axis.
+    speedCNCZ = 40;
+    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
+    CNC_TIMER_Z();
+    ZZeroingState=HIGH;
+  }
+  if(controlState==LOW)
+  {
+    ZZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, stage 3, move Y axis to middle and stop:
+  if((ZZeroingState==HIGH)&&(ZZeroingStepsTotal > ZZeroingStep))
+  {
+    //DEBUG_PORT.println("We reached point 1");
+    dirStateCNCZ = HIGH;                                     // LOW is left.
+    if(controlState==HIGH)
     {
-      DEBUG_PORT.println("");
-      DEBUG_PORT.print("stepStateCNCX  = ");DEBUG_PORT.println(stepStateCNCX);
-
+      //DEBUG_PORT.println("We reached point 2");
+      intervalCNCZOne = 1000000/speedCNCZ;                      // interval is smaller for faster speed.
+      CNC_TIMER_Z();
+    }
+    else
+    {
+      digitalWrite(31,LOW);
+    }     
+  }             // if(ZZeroing == HIGH)
+  if(ZZeroingStepsTotal <= ZZeroingStep)                     // Tells us that setup of Z axis is complete.
+  {
+    setupStateZ = HIGH;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP Z
+void CNC_TIMER_Z()
+{
+    unsigned long currentMicros = micros();
+    if ((currentMicros - prevMicrosCNCZOne) >= intervalCNCZOne)
+    {
+      ZZeroingStep++;
+      LSUZ = Fast_digitalRead(41);                          // Limit switch Z up
+      if (stepStateCNCZ == LOW)
+      {
+        stepStateCNCZ = HIGH;
+      }
+      else
+      {
+        stepStateCNCZ = LOW;
+      }
+      //DEBUG_PORT.print("ZZeroingState =    ");DEBUG_PORT.println(ZZeroingState);
+      digitalWrite(27,dirStateCNCZ);
+      digitalWrite(31,stepStateCNCZ);
+      digitalWrite(39,stepStateCNCZ);                        // Orange LED
+      prevMicrosCNCZOne = currentMicros;
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void CNC_TIMER_Y()
+{
+    unsigned long currentMicros = micros();
+    if ((currentMicros - prevMicrosCNCYOne) >= intervalCNCYOne)
+    {
+      YZeroingStep++;
+      LSLY = Fast_digitalRead(43);                          // Limit switch Y left
+      if (stepStateCNCY == LOW)
+      {
+        stepStateCNCY = HIGH;
+      }
+      else
+      {
+        stepStateCNCY = LOW;
+      }
+      //DEBUG_PORT.print("YZeroingState =    ");DEBUG_PORT.println(YZeroingState);
+      digitalWrite(51,dirStateCNCY);
+      digitalWrite(33,stepStateCNCY);
+      digitalWrite(39,stepStateCNCY);                        // Orange LED
+      prevMicrosCNCYOne = currentMicros;
+    }
+}
+void CNC_TIMER_X()
+{
+    unsigned long currentMicros = micros();
+    if ((currentMicros - prevMicrosCNCXOne) >= intervalCNCXOne)
+    {
+      XZeroingStep++;
+      LSFX = Fast_digitalRead(49);                          // Limit switch X forwards
       if (stepStateCNCX == LOW)
       {
         stepStateCNCX = HIGH;
@@ -176,39 +278,165 @@ void CNC()
       {
         stepStateCNCX = LOW;
       }
-      digitalWrite(53,dirStateCNCX);                // Was 53.
-      digitalWrite(35,stepStateCNCX);               // Was 35.
-      digitalWrite(39,stepStateCNCX);               // Orange LED
-      previousMicrosCNCX = currentMicros;
+      //DEBUG_PORT.print("XZeroingState =    ");DEBUG_PORT.println(XZeroingState);
+      digitalWrite(53,dirStateCNCX);
+      digitalWrite(35,stepStateCNCX);
+      digitalWrite(39,stepStateCNCX);                        // Orange LED
+      prevMicrosCNCXOne = currentMicros;
     }
+}
+void CNC_TIMER_R()
+{
+    unsigned long currentMicros = micros();
+    if ((currentMicros - prevMicrosCNCROne) >= intervalCNCROne)
+    {
+      if (stepStateCNCR == LOW)
+      {
+       stepStateCNCR = HIGH;
+      }
+      else
+      {
+        stepStateCNCR = LOW;
+      }
+      //digitalWrite(,dirStateCNCR);
+      digitalWrite(29,stepStateCNCR);
+      digitalWrite(39,stepStateCNCR);                          // Orange LED
+      prevMicrosCNCROne = currentMicros;
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void CNC_SETUP_Y()
+{  
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCY = 1500;                                         // 1 = one Hz.
+  YZeroingStepsTotal = 40000;
+  dirStateCNCY = LOW;                                       // LOW is Forwards.
+
+  // controlState==HIGH is autonomous mode.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(YZeroingState==LOW))            // Forwards and backwards switch open.
+  {
+    YZeroingStep=0;
+    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
+    CNC_TIMER_Y();
+  }
+  else
+  {
+    digitalWrite(33,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSLY==HIGH)&&(controlState==HIGH))                       // Y axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCY = HIGH;                                       // go right along Y axis.
+    speedCNCY = 10;
+    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
+    CNC_TIMER_Y();
+    YZeroingState=HIGH;
+  }
+  if(controlState==LOW)
+  {
+    YZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, stage 3, move Y axis to middle and stop:
+  if((YZeroingState==HIGH)&&(YZeroingStepsTotal > YZeroingStep))
+  {
+    //DEBUG_PORT.println("We reached point 1");
+    dirStateCNCY = HIGH;                                     // LOW is left.
+    if(controlState==HIGH)
+    {
+      //DEBUG_PORT.println("We reached point 2");
+      intervalCNCYOne = 1000000/speedCNCY;                      // interval is smaller for faster speed.
+      CNC_TIMER_Y();
+    }
+    else
+    {
+      digitalWrite(33,LOW);
+    }     
+  }             // if(YZeroing == HIGH)
+  if(YZeroingStepsTotal <= YZeroingStep)                     // Tells us that setup of Y axis is complete.
+  {
+    setupStateY = HIGH;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP Y
+/////////////////////////////////////////////////////////////////////////////////////////
+void CNC_SETUP_X()
+{  
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCX = 1200;                                         // 1 = one Hz.
+  XZeroingStepsTotal = 30000;
+  dirStateCNCX = LOW;                                       // LOW is Forwards.
+
+  // controlState==HIGH is autonomous mode.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(XZeroingState==LOW))            // Forwards and backwards switch open.
+  {
+    XZeroingStep=0;
+    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
+    CNC_TIMER_X();
   }
   else
   {
     digitalWrite(35,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSFX==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCX = HIGH;                                       // go backwards along X axis.
+    speedCNCX = 10;
+    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
+    CNC_TIMER_X();
+    XZeroingState=HIGH;
   }
-} // CNC
+  if(controlState==LOW)
+  {
+    XZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, move X axis to middle and stop:
+  if((XZeroingState==HIGH)&&(XZeroingStepsTotal > XZeroingStep))
+  {
+    dirStateCNCX = HIGH;                                     // LOW is Forwards.
+    if((LSBX==HIGH)&&(controlState==HIGH))                   //  backwards switch open.
+    {
+      intervalCNCXOne = 1000000/speedCNCX;                      // interval is smaller for faster speed.
+      CNC_TIMER_X();
+    }
+    else
+    {
+      digitalWrite(35,LOW);
+    }     
+  }             // if(XZeroing == HIGH)
+  if(XZeroingStepsTotal <= XZeroingStep)                     // Tells us that setup of X axis is complete.
+  {
+    setupStateX = HIGH;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP X
 /////////////////////////////////////////////////////////////////////////////////////////
 void loop()
 {  
   navState = digitalRead(25);                      // switch for Pixy / GPS.
   controlState = digitalRead(23);                  // switch for autonomous mode.
-  LSFX = digitalRead(49);                          // Limit switch X forwards
-  LSBX = digitalRead(47);                          // Limit switch X backwards
-  LSRY = digitalRead(45);                          // Limit switch Y right.
-  //LSLY = Fast_digitalRead(43);                          // Limit switch Y left.
-  
-  //if((LSFX==LOW)||(LSBX==LOW))                     // switches closed
-  //{
-    //DEBUG_PORT.println("One of the X switches is closed");
-    //digitalWrite(39,HIGH);                             // ORANGE LED 
-  //}
-  //else
-  //{
-    //DEBUG_PORT.println("X switches open");
-    //digitalWrite(39,LOW);                              // ORANGE LED 
-  //}
-  
-  CNC();  // Else     digitalWrite(35,LOW);
+
+  if((setupStateX==LOW)&&(setupStateX==LOW)&&(setupStateX==LOW)&&(controlState==HIGH))
+  {
+    CNC_SETUP_X();  // Else     digitalWrite(35,LOW);
+    CNC_SETUP_Y();
+    CNC_SETUP_Z();
+  }
+  else
+  {
+    if(controlState==HIGH)                                      // Carry on with the next CNC routine here.
+    {
+////////////////////////////////////////////////////////////////////////////////////////////////////
+      speedCNCR = 500;                                          // Step Hertz 500 is good.
+      intervalCNCROne = 1000000/speedCNCR;                      // interval is smaller for faster speed.
+      CNC_TIMER_R();
+////////////////////////////////////////////////////////////////////////////////////////////////////
+    }      // if controlState == HIGH
+  }        // else  
   // Might want to move digital reads to core1.
 /////////////////////////////////////////////////////////////////////////////////////////////////////
   unsigned long currentMillisSeven = millis();
