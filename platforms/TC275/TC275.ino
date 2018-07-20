@@ -73,7 +73,7 @@ int actuallySteering =LOW;
 
 int controlState = LOW;  // Manual or autonomous(HGH)
 int navState=LOW;        // Use Pixy or GPS
-int barcodeState=LOW;    // Use barcodes or not. Drive potentiometer will be overridden when high.
+int potentiometerState=LOW;    // Use barcodes or not. Drive potentiometer will be overridden when high.
 //int pixyBarData=0;
 
 int dirStateCNCX = LOW; 
@@ -107,13 +107,47 @@ int ZZeroingState = LOW;
 long XZeroingStepsTotal = 1000;
 long YZeroingStepsTotal = 1000;
 long ZZeroingStepsTotal = 1000;
-int XZeroingStep = 0;
-int YZeroingStep = 0;
-int ZZeroingStep = 0;
+long XZeroingStep = 0;
+long YZeroingStep = 0;
+long ZZeroingStep = 0;
 
 uint8_t setupStateX = LOW;           // Change to HIGH to skip CNC setups.
 uint8_t setupStateY = LOW;
 uint8_t setupStateZ = LOW;
+
+bool operationZero = false;
+bool operationOne = false;
+bool operationTwo = false;
+bool operationThree = false;
+bool operationFour = false;
+bool operationFive = false;
+bool operationSix = false;
+bool operationSeven = false;
+bool operationEight = false;
+bool operationNine = false;
+bool operationTen = false;
+bool operationEleven = false;
+bool operationTwelve = false;
+bool operationThirteen = false;
+bool operationFourteen = false;
+bool operationFifteen = false;
+bool operationSixteen = false;
+bool operationSeventeen = false;
+bool operationEighteen = false;
+bool operationNineteen = false;
+bool operationTwenty = false;
+bool operationTwentyOne = false;
+bool operationState = false;
+bool weedingBegin = false;
+bool move2ColumnsForwards = false;
+
+int currentSensorValueRAxis =0;
+int finalCurrentSensorValueRAxis =0;
+long runningCurrentValueRAxis =0;
+float RAxisCurrentSensorWeighting =0;
+
+long moveStepsForwards =0;
+long totalMoveStepsForwards =79601;             // 558.8 mm (22").
 
 EndOfInitialised_LMURam_Variables
 
@@ -163,264 +197,67 @@ void setup()
     setup2();
   #endif
 }
-void CNC_SETUP_Z()
+void loop()
 {  
-//////////////////////////////////////////////////////////////////////////////////////////
-  speedCNCZ = 2000;                                         // 1 = one Hz.
-  ZZeroingStepsTotal = 24000;
-  dirStateCNCZ = LOW;                                       // LOW is upwards ?
-
-  // controlState==HIGH is autonomous mode.
-  // Initial movement forward for zeroing:
-  if((controlState==HIGH)&&(ZZeroingState==LOW))            // Upwards switch open.
+  unsigned long currentMicrosOne = micros();
+  unsigned long currentMicrosTwo = micros(); 
+  unsigned long currentMicrosThree = micros();
+  unsigned long currentMicrosFour = micros();
+  
+  navState = digitalRead(25);                      // switch for Pixy / GPS.
+  controlState = digitalRead(23);                  // switch for autonomous mode.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((weedingBegin == true)&&(controlState==LOW))  // weedingBegin occurs in void opThree.
   {
-    ZZeroingStep=0;
-    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
-    CNC_TIMER_Z();
-  }
-  else
-  {
-    digitalWrite(31,LOW);
-  }                                                           // Initial movement forward for zeroing ends
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if((LSUZ==HIGH)&&(controlState==HIGH))                       // Z axis switch is closed and autonomous(HGH)
-  {
-    dirStateCNCZ = HIGH;                                       // go up along Z axis.
-    speedCNCZ = 40;
-    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
-    CNC_TIMER_Z();
-    ZZeroingState=HIGH;
-  }
-  if(controlState==LOW)
-  {
-    ZZeroingState=LOW;
-  }
-////////////////////////////////////////////////////////////////////////////////////////
-// Next, stage 3, move Y axis to middle and stop:
-  if((ZZeroingState==HIGH)&&(ZZeroingStepsTotal > ZZeroingStep))
-  {
-    //DEBUG_PORT.println("We reached point 1");
-    dirStateCNCZ = HIGH;                                     // LOW is left.
-    if(controlState==HIGH)
+    speedCNCZ = 2000;                                             // 1 = one Hz.
+    ZZeroingStepsTotal = 20000;                                // ? mm
+    dirStateCNCZ = LOW;                                        // HIGH is down.
+    if(ZZeroingStepsTotal > ZZeroingStep)
     {
-      //DEBUG_PORT.println("We reached point 2");
-      intervalCNCZOne = 1000000/speedCNCZ;                      // interval is smaller for faster speed.
+      CNC_TIMER_Z();
+    }   
+  }
+  if((weedingBegin == true)&&(controlState==HIGH))
+  {
+    ZZeroingStep =0;
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //RAxisCurrentSensorWeighting = (finalCurrentSensorValueRAxis*finalCurrentSensorValueRAxis)/(520*520);
+    if(finalCurrentSensorValueRAxis<520)
+    {
+      dirStateCNCZ = HIGH;                                     // HIGH is down.
+      speedCNCZ = 1000;                                         // 1 = one Hz.
       CNC_TIMER_Z();
     }
     else
     {
-      digitalWrite(31,LOW);
+      dirStateCNCZ = LOW;                                      // LOW is up.
+      speedCNCZ = 1000;  //*RAxisCurrentSensorWeighting;            // 1 = one Hz.
+      //DEBUG_PORT.print("RAxisCurrentSensorWeighting: ");DEBUG_PORT.println(RAxisCurrentSensorWeighting,4);
+      //DEBUG_PORT.print("speedCNCZ:                   ");DEBUG_PORT.println(speedCNCZ,4);
+      CNC_TIMER_Z();
     }     
-  }             // if(ZZeroing == HIGH)
-  if(ZZeroingStepsTotal <= ZZeroingStep)                     // Tells us that setup of Z axis is complete.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  }    // if((weedingBegin == true)&&(controlState==HIGH))
+  
+  if(operationState == true)                       // Repeats all operations.
   {
-    setupStateZ = HIGH;
+    operationZero = false;                          // Resets all CNC step counters to zero, except one and two, which are skipped.
+    operationThree = false;
+    operationFour = false;
+    operationFive = false;
+    operationSix = false;
+    operationSeven = false;
+    operationEight = false;
+    operationNine = false;
+    operationTen = false;
+    operationEleven = false;
+    operationTwelve = false;
+    operationThirteen = false;
+    operationFourteen = false;
+    operationFifteen = false;
+    operationState = false;
   }
-////////////////////////////////////////////////////////////////////////////////////////
-}               // CNC SETUP Z
-void CNC_TIMER_Z()
-{
-    unsigned long currentMicros = micros();
-    if ((currentMicros - prevMicrosCNCZOne) >= intervalCNCZOne)
-    {
-      ZZeroingStep++;
-      LSUZ = Fast_digitalRead(41);                          // Limit switch Z up
-      if (stepStateCNCZ == LOW)
-      {
-        stepStateCNCZ = HIGH;
-      }
-      else
-      {
-        stepStateCNCZ = LOW;
-      }
-      //DEBUG_PORT.print("ZZeroingState =    ");DEBUG_PORT.println(ZZeroingState);
-      digitalWrite(27,dirStateCNCZ);
-      digitalWrite(31,stepStateCNCZ);
-      digitalWrite(39,stepStateCNCZ);                        // Orange LED
-      prevMicrosCNCZOne = currentMicros;
-    }
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void CNC_TIMER_Y()
-{
-    unsigned long currentMicros = micros();
-    if ((currentMicros - prevMicrosCNCYOne) >= intervalCNCYOne)
-    {
-      YZeroingStep++;
-      LSLY = Fast_digitalRead(43);                          // Limit switch Y left
-      if (stepStateCNCY == LOW)
-      {
-        stepStateCNCY = HIGH;
-      }
-      else
-      {
-        stepStateCNCY = LOW;
-      }
-      //DEBUG_PORT.print("YZeroingState =    ");DEBUG_PORT.println(YZeroingState);
-      digitalWrite(51,dirStateCNCY);
-      digitalWrite(33,stepStateCNCY);
-      digitalWrite(39,stepStateCNCY);                        // Orange LED
-      prevMicrosCNCYOne = currentMicros;
-    }
-}
-void CNC_TIMER_X()
-{
-    unsigned long currentMicros = micros();
-    if ((currentMicros - prevMicrosCNCXOne) >= intervalCNCXOne)
-    {
-      XZeroingStep++;
-      LSFX = Fast_digitalRead(49);                          // Limit switch X forwards
-      if (stepStateCNCX == LOW)
-      {
-        stepStateCNCX = HIGH;
-      }
-      else
-      {
-        stepStateCNCX = LOW;
-      }
-      //DEBUG_PORT.print("XZeroingState =    ");DEBUG_PORT.println(XZeroingState);
-      digitalWrite(53,dirStateCNCX);
-      digitalWrite(35,stepStateCNCX);
-      digitalWrite(39,stepStateCNCX);                        // Orange LED
-      prevMicrosCNCXOne = currentMicros;
-    }
-}
-void CNC_TIMER_R()
-{
-    unsigned long currentMicros = micros();
-    if ((currentMicros - prevMicrosCNCROne) >= intervalCNCROne)
-    {
-      if (stepStateCNCR == LOW)
-      {
-       stepStateCNCR = HIGH;
-      }
-      else
-      {
-        stepStateCNCR = LOW;
-      }
-      //digitalWrite(,dirStateCNCR);
-      digitalWrite(29,stepStateCNCR);
-      digitalWrite(39,stepStateCNCR);                          // Orange LED
-      prevMicrosCNCROne = currentMicros;
-    }
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void CNC_SETUP_Y()
-{  
-//////////////////////////////////////////////////////////////////////////////////////////
-  speedCNCY = 1500;                                         // 1 = one Hz.
-  YZeroingStepsTotal = 40000;
-  dirStateCNCY = LOW;                                       // LOW is Forwards.
-
-  // controlState==HIGH is autonomous mode.
-  // Initial movement forward for zeroing:
-  if((controlState==HIGH)&&(YZeroingState==LOW))            // Forwards and backwards switch open.
-  {
-    YZeroingStep=0;
-    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
-    CNC_TIMER_Y();
-  }
-  else
-  {
-    digitalWrite(33,LOW);
-  }                                                           // Initial movement forward for zeroing ends
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if((LSLY==HIGH)&&(controlState==HIGH))                       // Y axis switch is closed and autonomous(HGH)
-  {
-    dirStateCNCY = HIGH;                                       // go right along Y axis.
-    speedCNCY = 10;
-    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
-    CNC_TIMER_Y();
-    YZeroingState=HIGH;
-  }
-  if(controlState==LOW)
-  {
-    YZeroingState=LOW;
-  }
-////////////////////////////////////////////////////////////////////////////////////////
-// Next, stage 3, move Y axis to middle and stop:
-  if((YZeroingState==HIGH)&&(YZeroingStepsTotal > YZeroingStep))
-  {
-    //DEBUG_PORT.println("We reached point 1");
-    dirStateCNCY = HIGH;                                     // LOW is left.
-    if(controlState==HIGH)
-    {
-      //DEBUG_PORT.println("We reached point 2");
-      intervalCNCYOne = 1000000/speedCNCY;                      // interval is smaller for faster speed.
-      CNC_TIMER_Y();
-    }
-    else
-    {
-      digitalWrite(33,LOW);
-    }     
-  }             // if(YZeroing == HIGH)
-  if(YZeroingStepsTotal <= YZeroingStep)                     // Tells us that setup of Y axis is complete.
-  {
-    setupStateY = HIGH;
-  }
-////////////////////////////////////////////////////////////////////////////////////////
-}               // CNC SETUP Y
-/////////////////////////////////////////////////////////////////////////////////////////
-void CNC_SETUP_X()
-{  
-//////////////////////////////////////////////////////////////////////////////////////////
-  speedCNCX = 1200;                                         // 1 = one Hz.
-  XZeroingStepsTotal = 30000;
-  dirStateCNCX = LOW;                                       // LOW is Forwards.
-
-  // controlState==HIGH is autonomous mode.
-  // Initial movement forward for zeroing:
-  if((controlState==HIGH)&&(XZeroingState==LOW))            // Forwards and backwards switch open.
-  {
-    XZeroingStep=0;
-    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
-    CNC_TIMER_X();
-  }
-  else
-  {
-    digitalWrite(35,LOW);
-  }                                                           // Initial movement forward for zeroing ends
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if((LSFX==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
-  {
-    dirStateCNCX = HIGH;                                       // go backwards along X axis.
-    speedCNCX = 10;
-    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
-    CNC_TIMER_X();
-    XZeroingState=HIGH;
-  }
-  if(controlState==LOW)
-  {
-    XZeroingState=LOW;
-  }
-////////////////////////////////////////////////////////////////////////////////////////
-// Next, move X axis to middle and stop:
-  if((XZeroingState==HIGH)&&(XZeroingStepsTotal > XZeroingStep))
-  {
-    dirStateCNCX = HIGH;                                     // LOW is Forwards.
-    if((LSBX==HIGH)&&(controlState==HIGH))                   //  backwards switch open.
-    {
-      intervalCNCXOne = 1000000/speedCNCX;                      // interval is smaller for faster speed.
-      CNC_TIMER_X();
-    }
-    else
-    {
-      digitalWrite(35,LOW);
-    }     
-  }             // if(XZeroing == HIGH)
-  if(XZeroingStepsTotal <= XZeroingStep)                     // Tells us that setup of X axis is complete.
-  {
-    setupStateX = HIGH;
-  }
-////////////////////////////////////////////////////////////////////////////////////////
-}               // CNC SETUP X
-/////////////////////////////////////////////////////////////////////////////////////////
-void loop()
-{  
-  navState = digitalRead(25);                      // switch for Pixy / GPS.
-  controlState = digitalRead(23);                  // switch for autonomous mode.
-
-  if((setupStateX==LOW)&&(setupStateX==LOW)&&(setupStateX==LOW)&&(controlState==HIGH))
+  if((setupStateX==LOW)||(setupStateY==LOW)||(setupStateZ==LOW)&&(controlState==HIGH))
   {
     CNC_SETUP_X();  // Else     digitalWrite(35,LOW);
     CNC_SETUP_Y();
@@ -428,48 +265,31 @@ void loop()
   }
   else
   {
-    if(controlState==HIGH)                                      // Carry on with the next CNC routine here.
+    if((setupStateX==HIGH)&&(setupStateY==HIGH)&&(setupStateZ==HIGH)&&(controlState==HIGH))             // Carry on with the next CNC routine here.
     {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
       speedCNCR = 500;                                          // Step Hertz 500 is good.
-      intervalCNCROne = 1000000/speedCNCR;                      // interval is smaller for faster speed.
-      CNC_TIMER_R();
+      //CNC_TIMER_R();
+      opZero();
+      opOne();
+      opTwo();
+      opThree();
+      opFour();
+      opFive();
+      opSix();
+      opSeven();
+      opEight();
+      opNine();
+      opTen();
+      opEleven();
+      opTwelve();
+      opThirteen();
+      opFourteen();
+      opFifteen();
 ////////////////////////////////////////////////////////////////////////////////////////////////////
     }      // if controlState == HIGH
   }        // else  
   // Might want to move digital reads to core1.
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-  unsigned long currentMillisSeven = millis();
-  if((navState==HIGH)&&(controlState==HIGH)&&(pixyBarcode==3))                // Vehicle sees a barcode of type '3'.
-  {
-    barcodeState=HIGH;                                                        // Potentiometer is overridden.
-    if(stateSeven==LOW)
-    {
-      previousMillisSeven = currentMillisSeven;
-      finalDriveValue=440;                                                  // Machine moves slowly forwards.
-    }
-    if(((currentMillisSeven - previousMillisSeven) < intervalOperateCNC)&&(pixyBarData>40))  // Wait for a while for CNC task to complete.
-    {
-      stateSeven=HIGH;
-      finalDriveValue=500;                                                   // Machine is stationary.
-      // CNC mechanism does some work.
-    }
-    else
-    {
-      finalDriveValue=440;                                                    // Moves slowly forwards away from barcode until it vanishes.        
-    }
-  }
-  else
-  {
-    stateSeven = LOW;
-    previousMillisSeven = currentMillisSeven;
-    barcodeState=LOW;                                // Potentiometer is enabled again.
-  }
-//////////////////////////////////////////////////////////////////////////////////////////////////////  
-  unsigned long currentMicrosOne = micros();
-  unsigned long currentMicrosTwo = micros(); 
-  unsigned long currentMicrosThree = micros();
-  unsigned long currentMicrosFour = micros();
 
 speedDifferential();
 if ((difference<-300)||(difference>300))
@@ -907,6 +727,7 @@ const int intervalSix = 1000;
 int millisCalcFive =0;
 int millisCalcSix =0;
 int ACFrequency = 50; // Hertz
+
 EndOfInitialised_CPU1_Variables
   
 void setup1() 
@@ -917,12 +738,15 @@ void loop1()
 {
 ////////////////////////////////////////////////////////////////////////////// 
   ic = 0;
-  while (ic < intervalFive)   // AC 50 hertz is equivalent to 20 ms per AC cycle
+  runningCurrentValueRAxis = 0;
+  while (ic < intervalFive)                            // AC 50 hertz is equivalent to 20 ms per AC cycle
   {
     ic++;
-    delayMicroseconds(1000);                 // Capture data over one complete AC cycle.
+    delayMicroseconds(1000);                           // Capture data over one complete AC cycle.
     currentSensorValueFive = analogRead(A3);
     currentSensorValueSix = analogRead(A2);
+    currentSensorValueRAxis = analogRead(A4);          // Dc current on R axis power supply
+    runningCurrentValueRAxis = currentSensorValueRAxis + runningCurrentValueRAxis;
     if(currentSensorValueFive > maxCurrentValueFive)
     {
       maxCurrentValueFive = currentSensorValueFive;
@@ -933,6 +757,11 @@ void loop1()
     }
   }
 //////////////////////////////////////////////////////////////////////////////
+    finalCurrentSensorValueRAxis = runningCurrentValueRAxis / intervalFive;  // DC current on R axis power supply has been sampled (intervalFive) times.
+    //DEBUG_PORT.print("finalCurrentSensorValueRAxis:  ");DEBUG_PORT.println(finalCurrentSensorValueRAxis);
+    //DEBUG_PORT.print("currentSensorValueRAxis:       ");DEBUG_PORT.println(currentSensorValueRAxis);  
+    //DEBUG_PORT.print("runningCurrentValueRAxis:      ");DEBUG_PORT.println(runningCurrentValueRAxis);
+     
     runningmaxCurrentValueFive = (maxCurrentValueFive - 523)/80;
     runningmaxCurrentValueSix = (maxCurrentValueSix - 523)/80;
     maxCurrentValueFive = 0;
@@ -947,7 +776,7 @@ void loop1()
     driveValue = driveValue + analogRead(A1);
     k++;
   }
-  if(barcodeState==LOW)  // If a barcode is spotted, main motor drive is affected, see core 0.
+  if(potentiometerState==LOW)
   {
     finalDriveValue = driveValue/k;
   }
@@ -956,10 +785,10 @@ void loop1()
   //analogWrite(4,finalDriveValue/4);
 ///////////////////////////////////////////////////////////////////////////////////////  
   //controlState = digitalRead(23); 
-  if(controlState==HIGH)                // Autonomous mode
+  if(controlState==HIGH)                // Autonomous mode disabled !!!!!!!!!!!!
   {
-      steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
-      finalSteeringValue = 30*steeringValue;
+    steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
+    finalSteeringValue = 30*steeringValue;
   }
   else
   {
@@ -1152,7 +981,7 @@ void loop2()
   digitalWrite(37, ledBlueState);
 if(navState==HIGH)
   { 
-    makeTurnValue = pixyPanData - 180;   // Pixy
+    makeTurnValue = pixyPanData - 180 -10;   // Pixy +10 = 60mm to right.
   }
 else
   {
@@ -1195,7 +1024,7 @@ else
   }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 
   
-  if (millisCalc3 >= 4000)                            // timer
+  if (millisCalc3 >= 1000)                            // timer 1000 = 1 second.
   {  
     previousMillis3Core3=currentMillisCore3; 
 
@@ -1224,14 +1053,14 @@ else
   DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
   DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
   DEBUG_PORT.println();
-  DEBUG_PORT.print("controlState   Value= ");DEBUG_PORT.println(controlState);
-  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
-  DEBUG_PORT.print("Make Turn      Value= ");DEBUG_PORT.println(makeTurnValue);
+  DEBUG_PORT.print("controlState value = ");DEBUG_PORT.println(controlState);
+//  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
+//  DEBUG_PORT.print("Make Turn      Value= ");DEBUG_PORT.println(makeTurnValue);
   //DEBUG_PORT.print("Previous steering Value= ");DEBUG_PORT.println(previousFinalSteeringValue);
   //DEBUG_PORT.print("Difference= ");DEBUG_PORT.println(difference);
   //DEBUG_PORT.print("wheelsPosition= ");DEBUG_PORT.println(wheelsPosition);
-  DEBUG_PORT.print("Final Drive Value= ");DEBUG_PORT.println(finalDriveValue);
-  DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
+//  DEBUG_PORT.print("Final Drive Value= ");DEBUG_PORT.println(finalDriveValue);
+//  DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
   //DEBUG_PORT.print("analogueRead A1= ");DEBUG_PORT.println(driveValue);
   //DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
   //DEBUG_PORT.print("IntervalTwo= ");DEBUG_PORT.println(intervalTwo);
@@ -1243,32 +1072,35 @@ else
   //DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
   DEBUG_PORT.print("Pixy pan data  = ");DEBUG_PORT.println(pixyPanData);
   DEBUG_PORT.print("Pixy bar data  = ");DEBUG_PORT.println(pixyBarData);
+  DEBUG_PORT.print("Pixy barcode  = ");DEBUG_PORT.println(pixyBarcode);
+  DEBUG_PORT.print("NavState  = ");DEBUG_PORT.println(navState);
+  DEBUG_PORT.print("moveStepsForwards: ");DEBUG_PORT.println(moveStepsForwards);
   
-  if(forwards==HIGH)
-    {
-    DEBUG_PORT.println("FORWARDS");   
-    }
-  if(backwards==HIGH)
-    {
-    DEBUG_PORT.println("BACKWARDS");   
-    }
-  if(rightHandLock==HIGH)
-    {
-    DEBUG_PORT.println("RIGHT HAND LOCK");   
-    }
-  if(leftHandLock==HIGH)
-    {
-    DEBUG_PORT.println("LEFT HAND LOCK");   
-    }
-  if(clockW==HIGH)
-    {
-    DEBUG_PORT.println("GOING CLOCKWISE");   
-    }
-  if(antiClockW==HIGH)
-    {
-    DEBUG_PORT.println("GOING ANTI-CLOCKWISE");   
-    }
-  DEBUG_PORT.println("");
+//  if(forwards==HIGH)
+//    {
+//    DEBUG_PORT.println("FORWARDS");   
+//    }
+//  if(backwards==HIGH)
+//    {
+//    DEBUG_PORT.println("BACKWARDS");   
+//    }
+//  if(rightHandLock==HIGH)
+//    {
+//    DEBUG_PORT.println("RIGHT HAND LOCK");   
+//    }
+//  if(leftHandLock==HIGH)
+//    {
+//    DEBUG_PORT.println("LEFT HAND LOCK");   
+//    }
+//  if(clockW==HIGH)
+//    {
+//    DEBUG_PORT.println("GOING CLOCKWISE");   
+//    }
+//  if(antiClockW==HIGH)
+//    {
+//    DEBUG_PORT.println("GOING ANTI-CLOCKWISE");   
+//    }
+//  DEBUG_PORT.println("");
   } // millisCalc3
   
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1536,4 +1368,680 @@ void emicSpeech1()
   //DEBUG_PORT.println(text4);
   emicPort.print(cmd + text4 + "\n");
   ; 
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////////
+void CNC_SETUP_X()
+{  
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCX = 2000;                                         // 1 = one Hz.
+  XZeroingStepsTotal = 22768;                               // Middle.
+  dirStateCNCX = LOW;                                       // LOW is Forwards.
+
+  // controlState==HIGH is autonomous mode.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(XZeroingState==LOW))            // Forwards and backwards switch open.
+  {
+    XZeroingStep=0;
+    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
+    CNC_TIMER_X();
+  }
+  else
+  {
+    digitalWrite(35,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSFX==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCX = HIGH;                                       // go backwards along X axis.
+    speedCNCX = 100;
+    intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
+    CNC_TIMER_X();
+    XZeroingState=HIGH;
+  }
+  if(controlState==LOW)
+  {
+    XZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, move X axis to middle and stop:
+  if((XZeroingState==HIGH)&&(XZeroingStepsTotal > XZeroingStep))
+  {
+    dirStateCNCX = HIGH;                                     // LOW is Forwards.
+    if((LSBX==HIGH)&&(controlState==HIGH))                   //  backwards switch open.
+    {
+      intervalCNCXOne = 1000000/speedCNCX;                      // interval is smaller for faster speed.
+      CNC_TIMER_X();
+    }
+    else
+    {
+      digitalWrite(35,LOW);
+    }     
+  }             // if(XZeroing == HIGH)
+  if(XZeroingStepsTotal <= XZeroingStep)                     // Tells us that setup of X axis is complete.
+  {
+    setupStateX = HIGH;
+    //XZeroingStep=0;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP X
+void CNC_SETUP_Y()
+{  
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCY = 2000;                                         // 1 = one Hz.
+  YZeroingStepsTotal = 33440;                               // Middle. (1 and half grids.)
+  dirStateCNCY = LOW;                                       // LOW is Forwards.
+
+  // controlState==HIGH is autonomous mode.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(YZeroingState==LOW))            // Forwards and backwards switch open.
+  {
+    YZeroingStep=0;
+    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
+    CNC_TIMER_Y();
+  }
+  else
+  {
+    digitalWrite(33,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSLY==HIGH)&&(controlState==HIGH))                       // Y axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCY = HIGH;                                       // go right along Y axis.
+    speedCNCY = 100;
+    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
+    CNC_TIMER_Y();
+    YZeroingState=HIGH;
+  }
+  if(controlState==LOW)
+  {
+    YZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, stage 3, move Y axis to middle and stop:
+  if((YZeroingState==HIGH)&&(YZeroingStepsTotal > YZeroingStep))
+  {
+    //DEBUG_PORT.println("YZeroingStep:  ");DEBUG_PORT.println(YZeroingStep);
+    dirStateCNCY = HIGH;                                     // LOW is left.
+    if(controlState==HIGH)
+    {
+      //DEBUG_PORT.println("We reached point 2");
+      intervalCNCYOne = 1000000/speedCNCY;                      // interval is smaller for faster speed.
+      CNC_TIMER_Y();
+    }
+    else
+    {
+      digitalWrite(33,LOW);
+    }     
+  }             // if(YZeroing == HIGH)
+  if(YZeroingStepsTotal <= YZeroingStep)                     // Tells us that setup of Y axis is complete.
+  {
+    setupStateY = HIGH;
+    //YZeroingStep=0;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP Y
+void CNC_SETUP_Z()
+{  
+//////////////////////////////////////////////////////////////////////////////////////////
+  speedCNCZ = 3000;                                         // 1 = one Hz.
+  ZZeroingStepsTotal = 10000;
+  dirStateCNCZ = LOW;                                       // LOW is upwards ?
+
+  // controlState==HIGH is autonomous mode.
+  // Initial movement forward for zeroing:
+  if((controlState==HIGH)&&(ZZeroingState==LOW))            // Upwards switch open.
+  {
+    ZZeroingStep=0;
+    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
+    CNC_TIMER_Z();
+  }
+  else
+  {
+    digitalWrite(31,LOW);
+  }                                                           // Initial movement forward for zeroing ends
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+  if((LSUZ==HIGH)&&(controlState==HIGH))                       // Z axis switch is closed and autonomous(HGH)
+  {
+    dirStateCNCZ = HIGH;                                       // go up along Z axis.
+    speedCNCZ = 40;
+    intervalCNCZOne = 1000000/speedCNCZ;                       // interval is smaller for faster speed.
+    CNC_TIMER_Z();
+    ZZeroingState=HIGH;
+  }
+  if(controlState==LOW)
+  {
+    ZZeroingState=LOW;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+// Next, stage 3, move Z axis to middle and stop:
+  if((ZZeroingState==HIGH)&&(ZZeroingStepsTotal > ZZeroingStep))
+  {
+    //DEBUG_PORT.println("We reached point 1");
+    dirStateCNCZ = HIGH;                                     // LOW is left.
+    speedCNCZ = 2000;
+    if(controlState==HIGH)
+    {
+      //DEBUG_PORT.println("We reached point 2");
+      intervalCNCZOne = 1000000/speedCNCZ;                      // interval is smaller for faster speed.
+      CNC_TIMER_Z();
+    }
+    else
+    {
+      digitalWrite(31,LOW);
+    }     
+  }             // if(ZZeroing == HIGH)
+  if(ZZeroingStepsTotal <= ZZeroingStep)                     // Tells us that setup of Z axis is complete.
+  {
+    setupStateZ = HIGH;
+    //ZZeroingStep=0;
+  }
+////////////////////////////////////////////////////////////////////////////////////////
+}               // CNC SETUP Z
+
+void CNC_TIMER_Z()
+{
+    unsigned long currentMicros = micros();
+    intervalCNCZOne = 1000000/speedCNCZ;
+    if ((currentMicros - prevMicrosCNCZOne) >= intervalCNCZOne)
+    {
+      ZZeroingStep++;
+      LSUZ = Fast_digitalRead(41);                          // Limit switch Z up
+      if (stepStateCNCZ == LOW)
+      {
+        stepStateCNCZ = HIGH;
+      }
+      else
+      {
+        stepStateCNCZ = LOW;
+      }
+      //DEBUG_PORT.print("ZZeroingState =    ");DEBUG_PORT.println(ZZeroingState);
+      digitalWrite(27,dirStateCNCZ);
+      digitalWrite(31,stepStateCNCZ);
+      digitalWrite(39,stepStateCNCZ);                        // Orange LED
+      prevMicrosCNCZOne = currentMicros;
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void CNC_TIMER_Y()
+{
+    unsigned long currentMicros = micros();
+    intervalCNCYOne = 1000000/speedCNCY;                       // interval is smaller for faster speed.
+    if ((currentMicros - prevMicrosCNCYOne) >= intervalCNCYOne)
+    {
+      YZeroingStep++;
+      LSLY = Fast_digitalRead(43);                          // Limit switch Y left
+      if (stepStateCNCY == LOW)
+      {
+        stepStateCNCY = HIGH;
+      }
+      else
+      {
+        stepStateCNCY = LOW;
+      }
+      //DEBUG_PORT.print("YZeroingState =    ");DEBUG_PORT.println(YZeroingState);
+      digitalWrite(51,dirStateCNCY);
+      digitalWrite(33,stepStateCNCY);
+      digitalWrite(39,stepStateCNCY);                        // Orange LED
+      prevMicrosCNCYOne = currentMicros;
+    }
+}
+void CNC_TIMER_X()
+{
+    unsigned long currentMicros = micros();
+    intervalCNCXOne = 1000000/speedCNCX; 
+    if ((currentMicros - prevMicrosCNCXOne) >= intervalCNCXOne)
+    {
+      XZeroingStep++;
+      LSFX = Fast_digitalRead(49);                          // Limit switch X forwards
+      if (stepStateCNCX == LOW)
+      {
+        stepStateCNCX = HIGH;
+      }
+      else
+      {
+        stepStateCNCX = LOW;
+      }
+      //DEBUG_PORT.print("XZeroingState =    ");DEBUG_PORT.println(XZeroingState);
+      digitalWrite(53,dirStateCNCX);
+      digitalWrite(35,stepStateCNCX);
+      digitalWrite(39,stepStateCNCX);                        // Orange LED
+      prevMicrosCNCXOne = currentMicros;
+    }
+}
+void CNC_TIMER_R()
+{
+    unsigned long currentMicros = micros();
+    intervalCNCROne = 1000000/speedCNCR;                      // interval is smaller for faster speed.
+    if ((currentMicros - prevMicrosCNCROne) >= intervalCNCROne)
+    {
+      if (stepStateCNCR == LOW)
+      {
+       stepStateCNCR = HIGH;
+      }
+      else
+      {
+        stepStateCNCR = LOW;
+      }
+      //digitalWrite(,dirStateCNCR);
+      digitalWrite(29,stepStateCNCR);
+      digitalWrite(39,stepStateCNCR);                          // Orange LED
+      prevMicrosCNCROne = currentMicros;
+    }
+}
+void opZero()
+{
+  if(operationZero==false)                                      // current operation not yet performed.
+  {
+    operationZero = true;
+    XZeroingStep=0;
+    YZeroingStep=0;
+    ZZeroingStep=0;
+  }
+}
+void opOne()
+{
+  speedCNCX = 2000;                                            // 1 = one Hz.
+  if(operationOne==false)                                      // current operation not yet performed.
+  {
+    XZeroingStepsTotal = 17881;                                 // one grid
+    dirStateCNCX = LOW;                                        // LOW is forwards.
+    if(XZeroingStepsTotal > XZeroingStep)
+    {
+      CNC_TIMER_X();
+    }   
+  }             // if(operationOne == false)
+  if((XZeroingStepsTotal <= XZeroingStep)&&(operationOne==false))                    // Tells us that operationOne is complete.
+  {
+    operationOne=true;
+    XZeroingStep=0;
+    YZeroingStep=0;
+    ZZeroingStep=0;
+  }
+}
+void opTwo()
+{
+  if(operationOne==true)                                         // Operation one has been completed.
+  {
+    if(finalCurrentSensorValueRAxis<530)   // This value (530) is higher than in next operation to get claw down faster.
+    {
+      dirStateCNCZ = HIGH;                                     // HIGH is down.
+      speedCNCZ = 1000;                                         // 1 = one Hz.
+      CNC_TIMER_Z();
+    }
+    else
+    {
+      dirStateCNCZ = LOW;                                      // LOW is up.
+      speedCNCZ = 1000;                                        // 1 = one Hz.
+      CNC_TIMER_Z();
+    } 
+
+    
+    speedCNCY = 300;                                             // 1 = one Hz. Allow time for claw to lower.
+    CNC_TIMER_R();                                               // R axis motor claw starts turning.
+    if(operationTwo==false)
+    {
+      YZeroingStepsTotal = 26822;                                // One and a half grids.
+      dirStateCNCY = LOW;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }     // if(operationTwo == false)
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationTwo==false))                    // Tells us that operationOne is complete.
+    {
+      operationTwo=true;
+      YZeroingStep=0;
+    }
+  }      //if(operationOne==true)
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+void move2Columns()
+{
+  unsigned long currentMicrosThree = micros();
+  unsigned long currentMicrosFour = micros();
+  CNC_TIMER_R();
+  totalMoveStepsForwards = 20000;         // 13602 steps makes a move of 558.8mm (22") with current tyres. Increase this value above 13602 to use barcodes exclusively.
+  if ((move2ColumnsForwards == true)&&(moveStepsForwards <= totalMoveStepsForwards))        //Forwards.
+  {
+    backwards = LOW; forwards = HIGH;
+    speedDifferential();
+    torqueDifferential();
+    digitalWrite(10,LOW); // Direction
+    digitalWrite(12,LOW); // Direction
+    if (moveStepsForwards>=12000)
+    {
+      intervalThree = 7500;              // slow doen when close to 22" mark.
+      intervalFour = 7500;
+    }
+    else
+    {
+      intervalThree = 2500;
+      intervalFour = 2500;     
+    }
+    
+    if (currentMicrosThree - previousMicrosThree >= intervalThree)
+    {
+      changeStateThree();
+      digitalWrite(9,ledStateThree); // Drive motor step
+      previousMicrosThree = currentMicrosThree;
+      moveStepsForwards++;
+    }
+    if (currentMicrosFour - previousMicrosFour >= intervalFour)
+    {
+      changeStateFour();
+      digitalWrite(11,ledStateFour); // Drive motor step
+      previousMicrosFour = currentMicrosFour;
+    }
+    if ((navState==HIGH)&&(pixyBarData>=40)&&(pixyBarcode==3)&&(moveStepsForwards>=10000))     // This allows the machine to move away from a previous barcode so that it is no longer visible.
+    {
+      //DEBUG_PORT.print("pixyBarData (line 1739) = ");DEBUG_PORT.println(pixyBarData);
+      moveStepsForwards = totalMoveStepsForwards;                            // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
+    }                                                                        // Barcode needs to be somewhere near the 2 column mark for the above to work.
+  }    // if (move2ColumnsForwards == true) //Forwards.
+  else
+  {
+    move2ColumnsForwards = false;
+    moveStepsForwards =0;
+  }
+}   // void move2ColumnsForwards()
+// opThree is the start of the main weeding routine loop.
+void opThree()
+{
+  if((operationTwo==true)&&(move2ColumnsForwards == true)&&(controlState==HIGH))      // move2ColumnsForwards is made true in op21.
+  {
+    //DEBUG_PORT.print("line 1765 reached. ");DEBUG_PORT.println(moveStepsForwards);
+    //DEBUG_PORT.print("move2ColumnsForwards = ");DEBUG_PORT.println(moveStepsForwards);
+    move2Columns();                                               // move forwards one column only after first CNC loop.
+  }
+  if((operationTwo==true)&&(move2ColumnsForwards == false))       // Operation two and move forwards has been completed.
+  {
+    //DEBUG_PORT.print("operationTwo = ");DEBUG_PORT.println(operationTwo);
+    weedingBegin = true;
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationThree==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 35763;                                // 2 grids.
+      dirStateCNCX = HIGH;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }     // if(operationThree == false)
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationThree==false))                    // Tells us that operationThree is complete.
+    {
+      operationThree=true;
+      XZeroingStep=0;
+    }
+  }      //if(operationOne==true)
+}
+void opFour()
+{
+  if(operationThree==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationFour==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 53645;                                // 3 grid
+      dirStateCNCY = HIGH;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }     // if(operationTwo == false)
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationFour==false))                    // Tells us that current operation is complete.
+    {
+      operationFour=true;
+      YZeroingStep=0;
+    }
+  }      //if(operationOne==true)
+}
+void opFive()
+{
+  if(operationFour==true)                                         // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1200;                                             // 1 = one Hz.
+    if(operationFive==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 35763;                                // 2 grids.
+      dirStateCNCX = LOW;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationFive==false))                    // Tells us that current operation is complete.
+    {
+      operationFive=true;
+      XZeroingStep=0;
+    }
+  }
+}
+void opSix()
+{
+  if(operationFive==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationSix==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 53645;                                // 3 grids
+      dirStateCNCY = LOW;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }     // if(operationTwo == false)
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationSix==false))                    // Tells us that current operation is complete.
+    {
+      operationSix=true;
+      YZeroingStep=0;
+    }
+  }      //if(operationOne==true)
+}
+void opSeven()
+{
+  if(operationSix==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationSeven==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 17881;                                // 1 grid.
+      dirStateCNCX = HIGH;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationSeven==false))                    // Tells us that current operation is complete.
+    {
+      operationSeven=true;
+      XZeroingStep=0;
+    }
+  }      //if(operationOne==true)
+}
+void opEight()
+{
+  if(operationSeven==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationEight==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 53645;                                // 3 grids.
+      dirStateCNCY = HIGH;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationEight==false))                    // Tells us that current operation is complete.
+    {
+      operationEight=true;
+      YZeroingStep=0;
+    }
+  }
+}
+void opNine()
+{
+  if(operationEight==true)                                         // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationNine==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 17881;                                // 1 grids.
+      dirStateCNCX = HIGH;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationNine==false))                    // Tells us that current operation is complete.
+    {
+      operationNine=true;
+      XZeroingStep=0;
+    }
+  }
+}
+void opTen()
+{
+  if(operationNine==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationTen==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 17881;                                // 1 grids.
+      dirStateCNCY = LOW;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationTen==false))                    // Tells us that current operation is complete.
+    {
+      operationTen=true;
+      YZeroingStep=0;
+    }
+  }
+}
+void opEleven()
+{
+  if(operationTen==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationEleven==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 35763;                                  // two grids.
+      dirStateCNCX = LOW;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationEleven==false))                    // Tells us that current operation is complete.
+    {
+      operationEleven=true;
+      XZeroingStep=0;
+    }
+  }
+}
+void opTwelve()
+{
+  if(operationEleven==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationTwelve==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 17881;                                  // 1 grid.
+      dirStateCNCY = LOW;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationTwelve==false))                    // Tells us that current operation is complete.
+    {
+      operationTwelve=true;
+      YZeroingStep=0;
+    }
+  }
+}
+void opThirteen()
+{
+  if(operationTwelve==true)                                         // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationThirteen==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 35763;                                // 2 grids.
+      dirStateCNCX = HIGH;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationThirteen==false))                    // Tells us that current operation is complete.
+    {
+      operationThirteen=true;
+      XZeroingStep=0;
+    }
+  }
+}
+void opFourteen()
+{
+  if(operationThirteen==true)                                       // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCY = 1000;                                             // 1 = one Hz.
+    if(operationFourteen==false)                                     // current operation not yet performed.
+    {
+      YZeroingStepsTotal = 17881;                                  // 1 grid.
+      dirStateCNCY = LOW;                                        // LOW is left.
+      if(YZeroingStepsTotal > YZeroingStep)
+      {
+        CNC_TIMER_Y();
+      }   
+    }
+    if((YZeroingStepsTotal <= YZeroingStep)&&(operationFourteen==false))                    // Tells us that current operation is complete.
+    {
+      operationFourteen=true;
+      YZeroingStep=0;
+    }
+  }
+}
+void opFifteen()
+{
+  if(operationFourteen==true)                                         // Previous operation has been completed.
+  {
+    CNC_TIMER_R();                                               // Enable claw rotation.
+    speedCNCX = 1000;                                             // 1 = one Hz.
+    if(operationFifteen==false)                                     // current operation not yet performed.
+    {
+      XZeroingStepsTotal = 35763;                                // 2 grids.
+      dirStateCNCX = LOW;                                        // LOW is forwards.
+      if(XZeroingStepsTotal > XZeroingStep)
+      {
+        CNC_TIMER_X();
+      }   
+    }
+    if((XZeroingStepsTotal <= XZeroingStep)&&(operationFifteen==false))                    // Tells us that current operation is complete.
+    {
+      move2ColumnsForwards = true;                                 // prepare for machine moving one column forwards.
+      operationFifteen=true;
+      XZeroingStep=0;
+      operationState=true;                                    // All operations have finished.
+      DEBUG_PORT.print("move2ColumnsForwards = ");DEBUG_PORT.println(move2ColumnsForwards);
+    }
+  }
 }
