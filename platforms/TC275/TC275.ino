@@ -32,7 +32,6 @@ StartOfInitialised_LMURam_Variables
 float runningmaxCurrentValueFive = 1;
 float runningmaxCurrentValueSix = 1;
 float resultOne = 1.0000;
-const int ledPin =  13;
 int ledStateOne = LOW;   
 int ledStateTwo = LOW;   
 int ledStateThree = LOW;
@@ -88,11 +87,13 @@ int stepStateCNCX = LOW;
 int stepStateCNCY = LOW;
 int stepStateCNCZ = LOW;
 int stepStateCNCR = LOW;
-uint8_t LSFX = LOW;          // Switch open x axis.
+uint8_t LSFXRHS = LOW;          // RHS Switch open x axis.
+uint8_t LSFXLHS = LOW;          // LHS Switch open x axis.
 uint8_t LSBX = HIGH;
 uint8_t LSRY = HIGH;          // Switch open y axis. LSRY = limit switch right y.
-uint8_t LSLY = HIGH;
-uint8_t LSUZ = HIGH;
+uint8_t LSLY = HIGH;          // D43
+uint8_t LSUZ = HIGH;          // D41
+uint8_t LSDZ = HIGH;         // limit switch Z down.
 unsigned long prevMicrosCNCXOne = 0; 
 unsigned long prevMicrosCNCYOne = 0; 
 unsigned long prevMicrosCNCZOne = 0; 
@@ -140,6 +141,7 @@ bool operationTwentyOne = false;
 bool operationState = false;
 bool weedingBegin = false;
 bool move2ColumnsForwards = false;
+bool bothXAxisLimitSwitches = false;
 
 int currentSensorValueRAxis =0;
 int finalCurrentSensorValueRAxis =0;
@@ -156,7 +158,6 @@ EndOfInitialised_LMURam_Variables
 void setup()
 {  
   delay(5000);
-  pinMode(ledPin, OUTPUT);
   pinMode(5,OUTPUT); //STEP Steer Motor
   pinMode(6,OUTPUT); //DIRECTION HIGH is clockwise
   pinMode(7,OUTPUT); //STEP Steer Motor
@@ -166,11 +167,10 @@ void setup()
   pinMode(11,OUTPUT); //STEP Drive Motor
   pinMode(12,OUTPUT); //DIRECTION HIGH is clockwise
 
-  pinMode(39, OUTPUT);   // ORANGE LED 
-  digitalWrite(39,LOW); 
-
-  pinMode(35, OUTPUT);   // Step x axis
+  pinMode(35, OUTPUT);   // Step x axis RHS
   digitalWrite(35,LOW);
+  pinMode(13, OUTPUT);   // Step x axis LHS
+  digitalWrite(13,LOW);
   pinMode(53, OUTPUT);   // Direction x axis, LOW is forwards
   digitalWrite(53,LOW);
   pinMode(33, OUTPUT);   // Step y axis
@@ -183,10 +183,10 @@ void setup()
   
   pinMode(25,INPUT_PULLUP);    // Turn on/off drive motors
   pinMode(23,INPUT_PULLUP);    // Control state switch eg manual / autonomous
-  
-  pinMode(49,INPUT_PULLUP);    // Limit switch forwards X
-  pinMode(47,INPUT_PULLUP);    // Limit switch backwards X
-  pinMode(45,INPUT_PULLUP);    // Limit switch right Y
+  //pinMode(39,INPUT_PULLUP);    // 
+  pinMode(49,INPUT_PULLUP);    // Limit switch RHS forwards X
+  pinMode(47,INPUT_PULLUP);    // Limit switch LHS forwards X 
+  pinMode(45,INPUT_PULLUP);    // Limit switch down Z
   pinMode(43,INPUT_PULLUP);    // Limit switch left Y
   pinMode(41,INPUT_PULLUP);    // Limit switch upwards Z (no limit switch on down)
   
@@ -314,7 +314,7 @@ if (finalDriveValue>=550)  //Backwards.
   intervalThree = (400000/finalDriveValue)-100; // 140 is max speed.
   intervalFour =  (400000/finalDriveValue)-100; // 140 is max speed.
   speedDifferential();
-  torqueDifferential();
+//   torqueDifferential();
   digitalWrite(10,HIGH);
   digitalWrite(12,HIGH);
   if ((currentMicrosThree - previousMicrosThree >= intervalThree)&&(intervalThree>100))
@@ -339,7 +339,7 @@ if (finalDriveValue<450) //Forwards.
   intervalThree = (finalDriveValue*1)+100; // 140 is max speed. Right hand wheel.
   intervalFour = (finalDriveValue*1)+100; // 140 is max speed.
   speedDifferential();
-  torqueDifferential();
+//   torqueDifferential();
   //There are two main states that the steering is in 1) static at any angle and 2) moving to new angle. The main calculation is
   // speedDifferential(); but there is also actualTurnSpeedDifferential(); which is nested within speedDifferential(); and 
   // overides it if the steering is in the process of changing angle. The latter is important as the steering bearing is offset
@@ -743,8 +743,8 @@ void loop1()
   {
     ic++;
     delayMicroseconds(1000);                           // Capture data over one complete AC cycle.
-    currentSensorValueFive = analogRead(A3);
-    currentSensorValueSix = analogRead(A2);
+    currentSensorValueFive = analogRead(A5);
+    currentSensorValueSix = analogRead(A6);
     currentSensorValueRAxis = analogRead(A4);          // Dc current on R axis power supply
     runningCurrentValueRAxis = currentSensorValueRAxis + runningCurrentValueRAxis;
     if(currentSensorValueFive > maxCurrentValueFive)
@@ -817,7 +817,6 @@ void changeStateOne()
     {
     ledStateOne = LOW;
     }
-  digitalWrite(ledPin, ledStateOne);
 }
 void changeStateTwo()
 {
@@ -831,7 +830,6 @@ void changeStateTwo()
     {
     ledStateTwo = LOW;
     }
-  digitalWrite(ledPin, ledStateTwo);
 }
 void changeStateThree()
 {
@@ -845,7 +843,6 @@ void changeStateThree()
     {
     ledStateThree = LOW;
     }
-  digitalWrite(ledPin, ledStateThree);
 }
 void changeStateFour()
 {
@@ -859,7 +856,6 @@ void changeStateFour()
     {
     ledStateFour = LOW;
     }
-  digitalWrite(ledPin, ledStateFour);
 }
 void clockWise()
 {
@@ -970,7 +966,6 @@ void setup2()
 void loop2() 
 {
   tone(2,pixyBarData*20);   // pin,pitch,duration
-  //digitalWrite(39,LOW); // Orange LED
   if (ledBlueState == LOW) 
   {
       ledBlueState = HIGH;
@@ -981,7 +976,7 @@ void loop2()
   digitalWrite(37, ledBlueState);
 if(navState==HIGH)
   { 
-    makeTurnValue = pixyPanData - 180 -10;   // Pixy +10 = 60mm to right.
+    makeTurnValue = pixyPanData - 180 -5;   // Pixy +10 = 60mm to right.
   }
 else
   {
@@ -1043,16 +1038,21 @@ else
      //DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
     
   DEBUG_PORT.println();
+  DEBUG_PORT.print("bothXAxisLimitSwitches:  ");DEBUG_PORT.println(bothXAxisLimitSwitches);
+  DEBUG_PORT.print("LSFXLHS:  ");DEBUG_PORT.println(LSFXLHS);
+  DEBUG_PORT.print("maxCurrentValueFive:  ");DEBUG_PORT.println(maxCurrentValueFive,2);
+  DEBUG_PORT.print("maxCurrentValueSix:  ");DEBUG_PORT.println(maxCurrentValueSix,2);
+  
   DEBUG_PORT.print("LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
   DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
   //DEBUG_PORT.print("  samples per cycle:  ");DEBUG_PORT.println(icMax);
-  DEBUG_PORT.print("Integer latitude  UBLOX:  ");DEBUG_PORT.println(latitudeUblox);
-  DEBUG_PORT.print("Integer longitude UBLOX:  ");DEBUG_PORT.println(longitudeUblox); 
-  DEBUG_PORT.print("Bearing    = ");DEBUG_PORT.println(bearingDegrees);
-  DEBUG_PORT.print("Heading    = ");DEBUG_PORT.println(headingDegrees);
-  DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
+  //DEBUG_PORT.print("Integer latitude  UBLOX:  ");DEBUG_PORT.println(latitudeUblox);
+  //DEBUG_PORT.print("Integer longitude UBLOX:  ");DEBUG_PORT.println(longitudeUblox); 
+  //DEBUG_PORT.print("Bearing    = ");DEBUG_PORT.println(bearingDegrees);
+  //DEBUG_PORT.print("Heading    = ");DEBUG_PORT.println(headingDegrees);
+  //DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
   DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
-  DEBUG_PORT.println();
+  //DEBUG_PORT.println();
   DEBUG_PORT.print("controlState value = ");DEBUG_PORT.println(controlState);
 //  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
 //  DEBUG_PORT.print("Make Turn      Value= ");DEBUG_PORT.println(makeTurnValue);
@@ -1391,9 +1391,10 @@ void CNC_SETUP_X()
   else
   {
     digitalWrite(35,LOW);
+    digitalWrite(13,LOW);
   }                                                           // Initial movement forward for zeroing ends
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if((LSFX==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
+  if((LSFXRHS==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
   {
     dirStateCNCX = HIGH;                                       // go backwards along X axis.
     speedCNCX = 100;
@@ -1418,6 +1419,7 @@ void CNC_SETUP_X()
     else
     {
       digitalWrite(35,LOW);
+      digitalWrite(13,LOW);
     }     
   }             // if(XZeroing == HIGH)
   if(XZeroingStepsTotal <= XZeroingStep)                     // Tells us that setup of X axis is complete.
@@ -1549,6 +1551,11 @@ void CNC_TIMER_Z()
     {
       ZZeroingStep++;
       LSUZ = Fast_digitalRead(41);                          // Limit switch Z up
+      LSDZ = Fast_digitalRead(45);                          // Limit switch Z down
+      if (LSDZ==HIGH)                                       // Limit switch Z activated.
+      {
+        dirStateCNCZ=LOW;                                   // LOW is up.
+      }
       if (stepStateCNCZ == LOW)
       {
         stepStateCNCZ = HIGH;
@@ -1560,7 +1567,6 @@ void CNC_TIMER_Z()
       //DEBUG_PORT.print("ZZeroingState =    ");DEBUG_PORT.println(ZZeroingState);
       digitalWrite(27,dirStateCNCZ);
       digitalWrite(31,stepStateCNCZ);
-      digitalWrite(39,stepStateCNCZ);                        // Orange LED
       prevMicrosCNCZOne = currentMicros;
     }
 }
@@ -1584,7 +1590,6 @@ void CNC_TIMER_Y()
       //DEBUG_PORT.print("YZeroingState =    ");DEBUG_PORT.println(YZeroingState);
       digitalWrite(51,dirStateCNCY);
       digitalWrite(33,stepStateCNCY);
-      digitalWrite(39,stepStateCNCY);                        // Orange LED
       prevMicrosCNCYOne = currentMicros;
     }
 }
@@ -1595,7 +1600,8 @@ void CNC_TIMER_X()
     if ((currentMicros - prevMicrosCNCXOne) >= intervalCNCXOne)
     {
       XZeroingStep++;
-      LSFX = Fast_digitalRead(49);                          // Limit switch X forwards
+      LSFXRHS = Fast_digitalRead(49);                          // Limit switch X RHS forwards
+      LSFXLHS = Fast_digitalRead(47);                          // Limit switch X LHS forwards
       if (stepStateCNCX == LOW)
       {
         stepStateCNCX = HIGH;
@@ -1606,8 +1612,23 @@ void CNC_TIMER_X()
       }
       //DEBUG_PORT.print("XZeroingState =    ");DEBUG_PORT.println(XZeroingState);
       digitalWrite(53,dirStateCNCX);
-      digitalWrite(35,stepStateCNCX);
-      digitalWrite(39,stepStateCNCX);                        // Orange LED
+//////////////////////////////////////////////////////////////////////////////
+// Aligns left and right X axis saddles together:
+
+      if ((LSFXLHS==LOW)||(bothXAxisLimitSwitches==true))    // HIGH means switch activated.
+      {
+        digitalWrite(13,stepStateCNCX);                      // LHS
+      }
+      if ((LSFXRHS==LOW)||(bothXAxisLimitSwitches==true))    // HIGH means switch activated.
+      {
+        digitalWrite(35,stepStateCNCX);                      // RHS
+      }
+      if ((LSFXLHS==HIGH)&&(LSFXRHS==HIGH))
+      {
+        bothXAxisLimitSwitches = true;
+      }
+
+///////////////////////////////////////////////////////////////////////////////
       prevMicrosCNCXOne = currentMicros;
     }
 }
@@ -1627,7 +1648,6 @@ void CNC_TIMER_R()
       }
       //digitalWrite(,dirStateCNCR);
       digitalWrite(29,stepStateCNCR);
-      digitalWrite(39,stepStateCNCR);                          // Orange LED
       prevMicrosCNCROne = currentMicros;
     }
 }
@@ -1708,7 +1728,7 @@ void move2Columns()
   {
     backwards = LOW; forwards = HIGH;
     speedDifferential();
-    torqueDifferential();
+  //   torqueDifferential();
     digitalWrite(10,LOW); // Direction
     digitalWrite(12,LOW); // Direction
     if (moveStepsForwards>=12000)
@@ -1735,10 +1755,10 @@ void move2Columns()
       digitalWrite(11,ledStateFour); // Drive motor step
       previousMicrosFour = currentMicrosFour;
     }
-    if ((navState==HIGH)&&(pixyBarData>=40)&&(pixyBarcode==3)&&(moveStepsForwards>=10000))     // This allows the machine to move away from a previous barcode so that it is no longer visible.
+    if ((navState==HIGH)&&(pixyBarData>=34)&&(pixyBarcode==3)&&(moveStepsForwards>=10000))     // This allows the machine to move away from a previous barcode so that it is no longer visible.
     {
       //DEBUG_PORT.print("pixyBarData (line 1739) = ");DEBUG_PORT.println(pixyBarData);
-      moveStepsForwards = totalMoveStepsForwards;                            // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
+      moveStepsForwards = totalMoveStepsForwards +1;                            // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
     }                                                                        // Barcode needs to be somewhere near the 2 column mark for the above to work.
   }    // if (move2ColumnsForwards == true) //Forwards.
   else
