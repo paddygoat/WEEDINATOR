@@ -44,12 +44,29 @@ unsigned long previousMicrosThree = 0;
 unsigned long previousMicrosFour = 0;
 unsigned long previousMillisSeven = 0;
 
+unsigned long previousMicrosTimerAsyncLeftA = 0; 
+unsigned long previousMicrosTimerAsyncLeftB = 0; 
+unsigned long intervalTimerAsyncLeftA = 0;
+unsigned long intervalTimerAsyncLeftB = 0;
+float speedTimerAsyncLeftA = 0.001;
+float speedTimerAsyncLeftB = 0.001;
+int asyncStateLeft = HIGH;
+unsigned long previousMicrosTimerAsyncRightA = 0; 
+unsigned long previousMicrosTimerAsyncRightB = 0; 
+unsigned long intervalTimerAsyncRightA = 0;
+unsigned long intervalTimerAsyncRightB = 0;
+float speedTimerAsyncRightA = 0.001;
+float speedTimerAsyncRightB = 0.001;
+int asyncStateRight = HIGH;
+
 float intervalOne = 1000; // Right hand wheel turn speed. Bigger is faster.
 float intervalTwo = 1000; // Left hand wheel turn speed.
 float intervalThree = 1000; // Right hand wheel drive speed. Is this left wheel?
 float intervalFour = 1000; // Left hand wheel drive speed.
 int intervalOperateCNC = 10000; // CNC timer.
 int intervalMoveSlightlyForwards = 2000; // Move slightly forwards after CNC action timer.
+
+int asyncCount =0;
 
 int difference=0;
 int previousFinalSteeringValue=15300;
@@ -116,6 +133,7 @@ uint8_t setupStateX = LOW;           // Change to HIGH to skip CNC setups.
 uint8_t setupStateY = LOW;
 uint8_t setupStateZ = LOW;
 
+String operationNumber = " no c n c operation ";
 bool operationZero = false;
 bool operationOne = false;
 bool operationTwo = false;
@@ -142,6 +160,8 @@ bool operationState = false;
 bool weedingBegin = false;
 bool move2ColumnsForwards = false;
 bool bothXAxisLimitSwitches = false;
+bool barcodeReached = false;
+bool overideSteering = false;
 
 int currentSensorValueRAxis =0;
 int finalCurrentSensorValueRAxis =0;
@@ -206,6 +226,15 @@ void loop()
   
   navState = digitalRead(25);                      // switch for Pixy / GPS.
   controlState = digitalRead(23);                  // switch for autonomous mode.
+  if(controlState==LOW)                            // manual mode.
+  {
+    operationNumber = " no c n c operation ";
+    overideSteering=false;
+  }
+  else
+  {
+    overideSteering=true;
+  }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
   if((weedingBegin == true)&&(controlState==LOW))  // weedingBegin occurs in void opThree.
   {
@@ -222,7 +251,7 @@ void loop()
     ZZeroingStep =0;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //RAxisCurrentSensorWeighting = (finalCurrentSensorValueRAxis*finalCurrentSensorValueRAxis)/(520*520);
-    if(finalCurrentSensorValueRAxis<520)
+    if(finalCurrentSensorValueRAxis<525)
     {
       dirStateCNCZ = HIGH;                                     // HIGH is down.
       speedCNCZ = 1000;                                         // 1 = one Hz.
@@ -257,7 +286,7 @@ void loop()
     operationFifteen = false;
     operationState = false;
   }
-  if((setupStateX==LOW)||(setupStateY==LOW)||(setupStateZ==LOW)&&(controlState==HIGH))
+  if(((setupStateX==LOW)||(setupStateY==LOW)||(setupStateZ==LOW))&&(controlState==HIGH))
   {
     CNC_SETUP_X();  // Else     digitalWrite(35,LOW);
     CNC_SETUP_Y();
@@ -268,7 +297,7 @@ void loop()
     if((setupStateX==HIGH)&&(setupStateY==HIGH)&&(setupStateZ==HIGH)&&(controlState==HIGH))             // Carry on with the next CNC routine here.
     {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-      speedCNCR = 500;                                          // Step Hertz 500 is good.
+      speedCNCR = 1500;                                          // Step Hertz 500 is good.
       //CNC_TIMER_R();
       opZero();
       opOne();
@@ -290,8 +319,10 @@ void loop()
     }      // if controlState == HIGH
   }        // else  
   // Might want to move digital reads to core1.
-
-speedDifferential();
+/////////////////////////////////////////////////////////////
+  turningWhenStationary();                                   // Accounts for turning when stationary.
+/////////////////////////////////////////////////////////////  
+speedTimerAsyncLeftA = 665;                                // Motors default is neutral.
 if ((difference<-300)||(difference>300))
 {
   actuallySteering = HIGH;
@@ -300,69 +331,15 @@ else
 {
   actuallySteering = LOW;  
 }
-if ((finalDriveValue<550)&&(finalDriveValue>450))  //Stationary
+if ((finalDriveValue<715)&&(finalDriveValue>615))  //Stationary
 {
   stationary=HIGH;
 }
 else
 {
   stationary=LOW;
+  ampflowMotor();
 }
-if (finalDriveValue>=550)  //Backwards.
-{
-  backwards = HIGH; forwards = LOW;
-  intervalThree = (400000/finalDriveValue)-100; // 140 is max speed.
-  intervalFour =  (400000/finalDriveValue)-100; // 140 is max speed.
-  speedDifferential();
-//   torqueDifferential();
-  digitalWrite(10,HIGH);
-  digitalWrite(12,HIGH);
-  if ((currentMicrosThree - previousMicrosThree >= intervalThree)&&(intervalThree>100))
-  {
-    changeStateThree();
-    digitalWrite(9,ledStateThree); // Drive motor step
-  }
-  if ((currentMicrosFour - previousMicrosFour >= intervalFour)&&(intervalFour>100))
-  {
-    changeStateFour();
-    digitalWrite(11,ledStateFour); // Drive motor step
-  }
-}// Backwards
-else
-{
-  intervalThree = 1000000;
-  intervalFour =  1000000;
-}
-if (finalDriveValue<450) //Forwards.
-{
-  backwards = LOW; forwards = HIGH;
-  intervalThree = (finalDriveValue*1)+100; // 140 is max speed. Right hand wheel.
-  intervalFour = (finalDriveValue*1)+100; // 140 is max speed.
-  speedDifferential();
-//   torqueDifferential();
-  //There are two main states that the steering is in 1) static at any angle and 2) moving to new angle. The main calculation is
-  // speedDifferential(); but there is also actualTurnSpeedDifferential(); which is nested within speedDifferential(); and 
-  // overides it if the steering is in the process of changing angle. The latter is important as the steering bearing is offset
-  // away from the ideal position right above the wheel and means that the speed of the wheels needs to take account of the speed
-  // of turn or else the wheels will effectively grind against each other.
-  digitalWrite(10,LOW); // Direction
-  digitalWrite(12,LOW); // Direction
-  if (currentMicrosThree - previousMicrosThree >= intervalThree)
-  {
-    changeStateThree();
-    digitalWrite(9,ledStateThree); // Drive motor step
-  }
-  if (currentMicrosFour - previousMicrosFour >= intervalFour)
-  {
-    changeStateFour();
-    digitalWrite(11,ledStateFour); // Drive motor step
-  }
-}// Forwards
-else
-{
-  intervalThree = 1000000;
-  intervalFour =  1000000;
-}  
 //////////////////////////////////////////////////////////////////////////////////////////////////////
   difference = finalSteeringValue - previousFinalSteeringValue; // This gives actual movement of the steering.
 //////////////////////////////////////////////////////////////////////////////////////////////////////  
@@ -464,7 +441,92 @@ else
 } // loop
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
+void ampflowMotor()
+{
+  if((finalDriveValue<=715)&&(finalDriveValue>=615))         // Dead zone is 100.
+  {
+    speedTimerAsyncLeftA = 665;
+  }
+  if(finalDriveValue<615)
+  {
+    speedTimerAsyncLeftA = (finalDriveValue - 665)/10 + 665;
+    speedTimerAsyncRightA = speedTimerAsyncLeftA;
+  }
+  if(finalDriveValue>715)
+  {
+    speedTimerAsyncLeftA = (finalDriveValue - 665)/10 + 665;
+    speedTimerAsyncRightA = speedTimerAsyncLeftA;
+  }
+  // finalDriveValue - forwards is less than 615, backwards is greater than 715.
+  moveRightMotor();
+  moveLeftMotor(); 
+} // ampflowMotor
+void moveMotors()
+{
+  unsigned long currentMicros = micros();
+  //speedTimerAsyncLeftA = 665;                                     // Between 1000 and 500. Neutral is 665.
+  intervalTimerAsyncLeftA = 1000000/speedTimerAsyncLeftA;
+  speedTimerAsyncLeftB = 50;                                      // B MUST be slower than A. Speed of 50 Hz == 20 ms.
+  intervalTimerAsyncLeftB = 1000000/speedTimerAsyncLeftB; 
+  intervalTimerAsyncLeftB = intervalTimerAsyncLeftB + intervalTimerAsyncLeftA;
 
+  if ((currentMicros - previousMicrosTimerAsyncLeftA) >= intervalTimerAsyncLeftA)
+  {
+    previousMicrosTimerAsyncLeftA = currentMicros;
+    asyncStateLeft = LOW;
+    if ((currentMicros - previousMicrosTimerAsyncLeftB) >= intervalTimerAsyncLeftB)
+    {
+      asyncStateLeft = HIGH;
+      previousMicrosTimerAsyncLeftB = currentMicros;
+    }
+    digitalWrite(9,asyncStateLeft);
+    digitalWrite(11,asyncStateLeft);
+  }
+}
+void moveRightMotor()                                         // For steering when stationary.
+{
+  unsigned long currentMicros = micros();
+  //speedTimerAsyncRightA = 655;                                     // Between 1000 and 500. Neutral is 665.
+  intervalTimerAsyncRightA = 1000000/speedTimerAsyncRightA;
+  speedDifferential();                                             // Adjusts inner and outer wheel speeds when steering turn speed is zero.
+  speedTimerAsyncRightB = 50;                                      // B MUST be slower than A. Speed of 50 Hz == 20 ms.
+  intervalTimerAsyncRightB = 1000000/speedTimerAsyncRightB; 
+  intervalTimerAsyncRightB = intervalTimerAsyncRightB + intervalTimerAsyncRightA;
+
+  if ((currentMicros - previousMicrosTimerAsyncRightA) >= intervalTimerAsyncRightA)
+  {
+    previousMicrosTimerAsyncRightA = currentMicros;
+    asyncStateRight = LOW;
+    if ((currentMicros - previousMicrosTimerAsyncRightB) >= intervalTimerAsyncRightB)
+    {
+      asyncStateRight = HIGH;
+      previousMicrosTimerAsyncRightB = currentMicros;
+    }
+    digitalWrite(9,asyncStateRight);
+  }
+}
+void moveLeftMotor()
+{
+  unsigned long currentMicros = micros();
+  //speedTimerAsyncLeftA = 655;                                     // Between 1000 and 500. Neutral is 665.
+  intervalTimerAsyncLeftA = 1000000/speedTimerAsyncLeftA;
+  speedDifferential();                                            // Adjusts inner and outer wheel speeds when steering turn speed is zero.
+  speedTimerAsyncLeftB = 50;                                      // B MUST be slower than A. Speed of 50 Hz == 20 ms.
+  intervalTimerAsyncLeftB = 1000000/speedTimerAsyncLeftB; 
+  intervalTimerAsyncLeftB = intervalTimerAsyncLeftB + intervalTimerAsyncLeftA;
+
+  if ((currentMicros - previousMicrosTimerAsyncLeftA) >= intervalTimerAsyncLeftA)
+  {
+    previousMicrosTimerAsyncLeftA = currentMicros;
+    asyncStateLeft = LOW;
+    if ((currentMicros - previousMicrosTimerAsyncLeftB) >= intervalTimerAsyncLeftB)
+    {
+      asyncStateLeft = HIGH;
+      previousMicrosTimerAsyncLeftB = currentMicros;
+    }
+    digitalWrite(11,asyncStateLeft);
+  }
+}
 void torqueDifferential()
 {
   // Make RH wheel turn slightly faster if current in LH wheel too high. Three and five is LH and Four and six is RH.
@@ -474,18 +536,17 @@ void torqueDifferential()
 void speedDifferential()
 {
   ferrets = map(wheelsPosition,-1,-15000,1,15000);  //Changes all negative values of wheelsPosition to positive.
-  if(wheelsPosition>200)
+  if((wheelsPosition>200)&&(stationary==LOW))       // NOT stationary.
   {
-     intervalFour =  intervalFour+(wheelsPosition*intervalFour)/20000; // Makes right hand inside wheel drive slower.
+     intervalTimerAsyncLeftA =  intervalTimerAsyncLeftA +(wheelsPosition*intervalTimerAsyncLeftA)/900000; // Makes right hand inside wheel drive slower.
   }
-  if(wheelsPosition<-200)
+  if((wheelsPosition<-200)&&(stationary==LOW))       // NOT stationary.
   {
-     intervalThree =  intervalThree+(ferrets*intervalThree)/20000; // Makes left hand inside wheel drive slower.
+     intervalTimerAsyncRightA =  intervalTimerAsyncRightA +(ferrets*intervalTimerAsyncRightA)/900000; // Makes left hand inside wheel drive slower.
   }
-  actualTurnSpeedDifferential();
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void actualTurnSpeedDifferential() 
+void turningWhenStationary() 
 // When the wheels are 'actually' steering, inside wheel can grind badly as it turns against drive. 'Actually' means
 // that the steering motors are actually moving but in reality steering will also happen when motors are stationary.
 // The steering has four main states 1. Clockwise & RH lock, 2. Anti-clockwise & RH lock, 3. Clockwise & LH lock and 4. Anti-clockwise & RH lock.
@@ -501,69 +562,37 @@ void actualTurnSpeedDifferential()
   {
      digitalWrite(10,HIGH); // Backwards
      digitalWrite(12,LOW);  // Forwards
-     intervalThree = intervalOne*radiusRatio;  // RH wheel speed
-     intervalFour = intervalTwo*radiusRatio;   // LH wheel speed
-     if ((currentMicrosThree - previousMicrosThree >= intervalThree))
-     {
-     changeStateThree();
-     digitalWrite(9,ledStateThree); // LH Drive motor step
-     }
-     if ((currentMicrosFour - previousMicrosFour >= intervalFour))
-     {
-     changeStateFour();
-     digitalWrite(11,ledStateFour); // RH Drive motor step
-     }
+     speedTimerAsyncLeftA = 650;                                     // Between 1000 and 500. Neutral is 665.
+     speedTimerAsyncRightA = 685;                                     // Between 1000 and 500. Neutral is 665.
+     moveLeftMotor();
+     moveRightMotor();
   }
   if((antiClockW==HIGH)&&(rightHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
      digitalWrite(10,LOW); // Forwards
      digitalWrite(12,HIGH);  // Backwards
-     intervalThree = intervalOne*radiusRatio;  // RH wheel speed
-     intervalFour = intervalTwo*radiusRatio;   // LH wheel speed
-     if ((currentMicrosThree - previousMicrosThree >= intervalThree))
-     {
-     changeStateThree();
-     digitalWrite(9,ledStateThree); // LH Drive motor step
-     }
-     if ((currentMicrosFour - previousMicrosFour >= intervalFour))
-     {
-     changeStateFour();
-     digitalWrite(11,ledStateFour); // RH Drive motor step
-     }
+     speedTimerAsyncLeftA = 685;                                     // Between 1000 and 500. Neutral is 665.
+     speedTimerAsyncRightA = 650;                                     // Between 1000 and 500. Neutral is 665.
+     moveLeftMotor();
+     moveRightMotor();
   }
   if((clockW==HIGH)&&(leftHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
      digitalWrite(10,HIGH); // Backwards
      digitalWrite(12,LOW);  // Forwards
-     intervalThree = intervalOne*radiusRatio;  // RH wheel speed
-     intervalFour = intervalTwo*radiusRatio;   // LH wheel speed
-     if ((currentMicrosThree - previousMicrosThree >= intervalThree))
-     {
-     changeStateThree();
-     digitalWrite(9,ledStateThree); // LH Drive motor step
-     }
-     if ((currentMicrosFour - previousMicrosFour >= intervalFour))
-     {
-     changeStateFour();
-     digitalWrite(11,ledStateFour); // RH Drive motor step
-     }
+     speedTimerAsyncLeftA = 650;                                     // Between 1000 and 500. Neutral is 665.
+     speedTimerAsyncRightA = 685;                                     // Between 1000 and 500. Neutral is 665.
+     moveLeftMotor();
+     moveRightMotor();
   }
   if((antiClockW==HIGH)&&(leftHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
      digitalWrite(10,LOW); // Forwards
      digitalWrite(12,HIGH);  // Backwards
-     intervalThree = intervalOne*radiusRatio;  // RH wheel speed
-     intervalFour = intervalTwo*radiusRatio;   // LH wheel speed
-     if ((currentMicrosThree - previousMicrosThree >= intervalThree))
-     {
-     changeStateThree();
-     digitalWrite(9,ledStateThree); // LH Drive motor step
-     }
-     if ((currentMicrosFour - previousMicrosFour >= intervalFour))
-     {
-     changeStateFour();
-     digitalWrite(11,ledStateFour); // RH Drive motor step
-     }
+     speedTimerAsyncLeftA = 685;                                     // Between 1000 and 500. Neutral is 665.
+     speedTimerAsyncRightA = 650;                                     // Between 1000 and 500. Neutral is 665.
+     moveLeftMotor();
+     moveRightMotor();
   }
   radiusRatio = 3;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -771,36 +800,39 @@ void loop1()
 //////////////////////////////////////////////////////////////////////////////
   long driveValue=0;
   k=0;
-  while(k<100)
-  { 
-    driveValue = driveValue + analogRead(A1);
-    k++;
-  }
-  if(potentiometerState==LOW)
+  if(controlState==LOW)                // Autonomous mode disabled !!!!!!!!!!!!
   {
-    finalDriveValue = driveValue/k;
+    while(k<100)
+    { 
+      driveValue = driveValue + analogRead(A1);
+      k++;
+    }
+      finalDriveValue = driveValue/k;
   }
 ////////////////////////////////////////////////////////////////////////////////////////
   //ArduinoPwmFreq(4,390); // set PWM freq on pin 4 to 1 kHz
   //analogWrite(4,finalDriveValue/4);
 ///////////////////////////////////////////////////////////////////////////////////////  
   //controlState = digitalRead(23); 
-  if(controlState==HIGH)                // Autonomous mode disabled !!!!!!!!!!!!
+  if (overideSteering==false)
   {
-    steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
-    finalSteeringValue = 30*steeringValue;
-  }
-  else
-  {
-    steeringValue=0;
-    m=0;
-    while(m<200)
-    { 
-      steeringValue = steeringValue + analogRead(A0);
-      m++;
+    if(controlState==HIGH)                   // Autonomous mode disabled !!!!!!!!!!!!
+    {
+      steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
+      finalSteeringValue = 30*steeringValue;
     }
-    finalSteeringValue = 30*steeringValue/m;
-  }
+    else
+    {
+      steeringValue=0;
+      m=0;
+      while(m<200)
+      { 
+        steeringValue = steeringValue + analogRead(A0);
+        m++;
+      }
+      finalSteeringValue = 30*steeringValue/m;
+    }
+  }   // if (overideSteering==false)
   // makeTurn HIGH is clockwise
   // makeTurnValue is degrees to turn
 
@@ -956,7 +988,7 @@ void setup2()
 
   pinMode(37, OUTPUT);   // BLUE LED
   digitalWrite(37,LOW);
-
+  delay(2000);
   while (emicPort.available()) 
   {
     emicIntro();
@@ -1007,9 +1039,9 @@ else
      previousMillis2Core3=currentMillisCore3;         
   }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  if (millisCalc1 >= 30000)                           // timer  .... 30,000
+  if (millisCalc1 >= 10000)                           // timer  .... 30,000
   {  
-    DEBUG_PORT.println("Emic Speech SHOULD be activated ");
+    //DEBUG_PORT.println("Emic Speech SHOULD be activated ");
     while (emicPort.available()) 
     {
       //DEBUG_PORT.println("Emic serial IS available");
@@ -1019,7 +1051,7 @@ else
   }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 
   
-  if (millisCalc3 >= 1000)                            // timer 1000 = 1 second.
+  if (millisCalc3 >= 250)                            // timer 1000 = 1 second.
   {  
     previousMillis3Core3=currentMillisCore3; 
 
@@ -1038,20 +1070,20 @@ else
      //DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
     
   DEBUG_PORT.println();
-  DEBUG_PORT.print("bothXAxisLimitSwitches:  ");DEBUG_PORT.println(bothXAxisLimitSwitches);
-  DEBUG_PORT.print("LSFXLHS:  ");DEBUG_PORT.println(LSFXLHS);
-  DEBUG_PORT.print("maxCurrentValueFive:  ");DEBUG_PORT.println(maxCurrentValueFive,2);
-  DEBUG_PORT.print("maxCurrentValueSix:  ");DEBUG_PORT.println(maxCurrentValueSix,2);
+  //DEBUG_PORT.print("bothXAxisLimitSwitches:  ");DEBUG_PORT.println(bothXAxisLimitSwitches);
+  //DEBUG_PORT.print("LSFXLHS:  ");DEBUG_PORT.println(LSFXLHS);
+  //DEBUG_PORT.print("maxCurrentValueFive:  ");DEBUG_PORT.println(maxCurrentValueFive,2);
+  //DEBUG_PORT.print("maxCurrentValueSix:  ");DEBUG_PORT.println(maxCurrentValueSix,2);
   
-  DEBUG_PORT.print("LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
-  DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
+  //DEBUG_PORT.print("LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
+  //DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
   //DEBUG_PORT.print("  samples per cycle:  ");DEBUG_PORT.println(icMax);
   //DEBUG_PORT.print("Integer latitude  UBLOX:  ");DEBUG_PORT.println(latitudeUblox);
   //DEBUG_PORT.print("Integer longitude UBLOX:  ");DEBUG_PORT.println(longitudeUblox); 
   //DEBUG_PORT.print("Bearing    = ");DEBUG_PORT.println(bearingDegrees);
   //DEBUG_PORT.print("Heading    = ");DEBUG_PORT.println(headingDegrees);
   //DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
-  DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
+  //DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
   //DEBUG_PORT.println();
   DEBUG_PORT.print("controlState value = ");DEBUG_PORT.println(controlState);
 //  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
@@ -1059,7 +1091,12 @@ else
   //DEBUG_PORT.print("Previous steering Value= ");DEBUG_PORT.println(previousFinalSteeringValue);
   //DEBUG_PORT.print("Difference= ");DEBUG_PORT.println(difference);
   //DEBUG_PORT.print("wheelsPosition= ");DEBUG_PORT.println(wheelsPosition);
-//  DEBUG_PORT.print("Final Drive Value= ");DEBUG_PORT.println(finalDriveValue);
+  DEBUG_PORT.print("Final Drive Value = ");DEBUG_PORT.println(finalDriveValue);
+  DEBUG_PORT.print("speedTimerAsyncLeftA =  ");DEBUG_PORT.println(speedTimerAsyncLeftA);
+  DEBUG_PORT.print("intervalTimerAsyncRightA =  ");DEBUG_PORT.println(intervalTimerAsyncRightA);  
+  DEBUG_PORT.print("intervalTimerAsyncLeftA =   ");DEBUG_PORT.println(intervalTimerAsyncLeftA); 
+  DEBUG_PORT.print("overideSteering =   ");DEBUG_PORT.println(overideSteering);
+  
 //  DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
   //DEBUG_PORT.print("analogueRead A1= ");DEBUG_PORT.println(driveValue);
   //DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
@@ -1069,12 +1106,14 @@ else
   //DEBUG_PORT.print("velocityControlLeft= ");DEBUG_PORT.println(velocityControlLeft);
   //DEBUG_PORT.print("velocityControlRight= ");DEBUG_PORT.println(velocityControlRight); 
   //DEBUG_PORT.print("ATSDState= ");DEBUG_PORT.println(ATSDState);
-  //DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
+  DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
   DEBUG_PORT.print("Pixy pan data  = ");DEBUG_PORT.println(pixyPanData);
   DEBUG_PORT.print("Pixy bar data  = ");DEBUG_PORT.println(pixyBarData);
   DEBUG_PORT.print("Pixy barcode  = ");DEBUG_PORT.println(pixyBarcode);
   DEBUG_PORT.print("NavState  = ");DEBUG_PORT.println(navState);
   DEBUG_PORT.print("moveStepsForwards: ");DEBUG_PORT.println(moveStepsForwards);
+  DEBUG_PORT.print("barcodeReached: ");DEBUG_PORT.println(barcodeReached);
+  
   
 //  if(forwards==HIGH)
 //    {
@@ -1334,6 +1373,7 @@ void emicSpeech1()
   // Emic 2 returns ':' if ready for command
   while (emicPort.read() != ':'); 
   delay(10);
+  emicPort.print("V18\n");
   emicPort.flush(); 
   emicPort.print('\n');
   emicPort.print('\n');
@@ -1354,15 +1394,9 @@ void emicSpeech1()
     text5 = " Make an anti clock wise turn. of ..";
   }
   text7 = "Start ";
-  int emicWaypoint = navData.waypointID()*1;
-  if (navData.waypointID() != 0) {
-    text4 = "We are now going to way point " + emicWaypoint +
-            text2 + distanceMM + " .. milli metres .. " +
-            text3 + emicBearing/100 + " .. degrees .. " +
-            text5 + makeTurnValue + " .. degrees";
-  } else {
-    text4 = "Oh dear .. we do not have a way point yet";
-  }
+
+  text4 = "We are currently doing " + operationNumber ;
+
   text4 += " .. End of message .. ";
   text6 = "[:phone arpa speak on][:rate 190][:n0][ GAA<400,12>DD<200,15>B<200,10>LLEH<200,19>EH<500,22>S<200,18>AH<100,18>MEH<200,16>K<100,13>AH<200,12>][:n0]";
   //DEBUG_PORT.println(text4);
@@ -1384,6 +1418,7 @@ void CNC_SETUP_X()
   // Initial movement forward for zeroing:
   if((controlState==HIGH)&&(XZeroingState==LOW))            // Forwards and backwards switch open.
   {
+    operationNumber = "zeroing all axis ease";
     XZeroingStep=0;
     intervalCNCXOne = 1000000/speedCNCX;                       // interval is smaller for faster speed.
     CNC_TIMER_X();
@@ -1532,7 +1567,7 @@ void CNC_SETUP_Z()
     }
     else
     {
-      digitalWrite(31,LOW);
+      digitalWrite(31,LOW);                                  // Step z axis.
     }     
   }             // if(ZZeroing == HIGH)
   if(ZZeroingStepsTotal <= ZZeroingStep)                     // Tells us that setup of Z axis is complete.
@@ -1552,9 +1587,13 @@ void CNC_TIMER_Z()
       ZZeroingStep++;
       LSUZ = Fast_digitalRead(41);                          // Limit switch Z up
       LSDZ = Fast_digitalRead(45);                          // Limit switch Z down
-      if (LSDZ==HIGH)                                       // Limit switch Z activated.
+      if (LSDZ==HIGH)                                       // Limit switch Z down activated.
       {
         dirStateCNCZ=LOW;                                   // LOW is up.
+      }
+      if (LSUZ==HIGH)                                       // Limit switch Z up activated.
+      {
+        dirStateCNCZ=HIGH;                                  // LOW is up.
       }
       if (stepStateCNCZ == LOW)
       {
@@ -1666,7 +1705,8 @@ void opOne()
   speedCNCX = 2000;                                            // 1 = one Hz.
   if(operationOne==false)                                      // current operation not yet performed.
   {
-    XZeroingStepsTotal = 17881;                                 // one grid
+    operationNumber = "operation one";
+    XZeroingStepsTotal = 17881;                                // one grid
     dirStateCNCX = LOW;                                        // LOW is forwards.
     if(XZeroingStepsTotal > XZeroingStep)
     {
@@ -1697,12 +1737,12 @@ void opTwo()
       speedCNCZ = 1000;                                        // 1 = one Hz.
       CNC_TIMER_Z();
     } 
-
     
     speedCNCY = 300;                                             // 1 = one Hz. Allow time for claw to lower.
     CNC_TIMER_R();                                               // R axis motor claw starts turning.
     if(operationTwo==false)
     {
+      operationNumber = "operation two";
       YZeroingStepsTotal = 26822;                                // One and a half grids.
       dirStateCNCY = LOW;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -1718,55 +1758,33 @@ void opTwo()
   }      //if(operationOne==true)
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-void move2Columns()
+void move2ColumnsForward()
 {
-  unsigned long currentMicrosThree = micros();
-  unsigned long currentMicrosFour = micros();
+  speedTimerAsyncRightA = 657;                                                                 // Move slowly forwards.
+  speedTimerAsyncLeftA = speedTimerAsyncRightA;
   CNC_TIMER_R();
-  totalMoveStepsForwards = 20000;         // 13602 steps makes a move of 558.8mm (22") with current tyres. Increase this value above 13602 to use barcodes exclusively.
-  if ((move2ColumnsForwards == true)&&(moveStepsForwards <= totalMoveStepsForwards))        //Forwards.
+  if (move2ColumnsForwards == true)                                                            //This is made 'true' in op 15.
   {
-    backwards = LOW; forwards = HIGH;
-    speedDifferential();
-  //   torqueDifferential();
-    digitalWrite(10,LOW); // Direction
-    digitalWrite(12,LOW); // Direction
-    if (moveStepsForwards>=12000)
+    operationNumber = "move two columns forwards";
+    overideSteering==false;                                                                    // Enable auto steering.
+    if (pixyBarData < 34)                                                                      // This is where barcode reached is reset to false.
     {
-      intervalThree = 7500;              // slow doen when close to 22" mark.
-      intervalFour = 7500;
+      barcodeReached = false;                                                                  // Move slowly forwards.      
     }
-    else
+    if ((navState==HIGH)&&(pixyBarData>=34)&&(pixyBarcode==3)&&(barcodeReached == false))      // Need to allow the machine to move away from a previous barcode so that it is no longer visible. State change?
     {
-      intervalThree = 2500;
-      intervalFour = 2500;     
-    }
-    
-    if (currentMicrosThree - previousMicrosThree >= intervalThree)
-    {
-      changeStateThree();
-      digitalWrite(9,ledStateThree); // Drive motor step
-      previousMicrosThree = currentMicrosThree;
-      moveStepsForwards++;
-    }
-    if (currentMicrosFour - previousMicrosFour >= intervalFour)
-    {
-      changeStateFour();
-      digitalWrite(11,ledStateFour); // Drive motor step
-      previousMicrosFour = currentMicrosFour;
-    }
-    if ((navState==HIGH)&&(pixyBarData>=34)&&(pixyBarcode==3)&&(moveStepsForwards>=10000))     // This allows the machine to move away from a previous barcode so that it is no longer visible.
-    {
-      //DEBUG_PORT.print("pixyBarData (line 1739) = ");DEBUG_PORT.println(pixyBarData);
-      moveStepsForwards = totalMoveStepsForwards +1;                            // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
-    }                                                                        // Barcode needs to be somewhere near the 2 column mark for the above to work.
+    //DEBUG_PORT.print("pixyBarData (line 1739) = ");DEBUG_PORT.println(pixyBarData);
+      speedTimerAsyncRightA = 665;                                                             // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
+      speedTimerAsyncLeftA = speedTimerAsyncRightA;
+      barcodeReached = true;                                                                   // where is barcodeReached made false?
+      move2ColumnsForwards = false;                                                            // move two columns forwards has been completed.
+      overideSteering==true;                                                                   // Disable auto steering.
+    }                                                                                          // Barcode needs to be somewhere near the 2 column mark for the above to work.
+    moveRightMotor();
+    moveLeftMotor();
   }    // if (move2ColumnsForwards == true) //Forwards.
-  else
-  {
-    move2ColumnsForwards = false;
-    moveStepsForwards =0;
-  }
-}   // void move2ColumnsForwards()
+}      // void move2ColumnsForwards()
+//////////////////////////////////////////////////////////////////////////////////////////
 // opThree is the start of the main weeding routine loop.
 void opThree()
 {
@@ -1774,7 +1792,7 @@ void opThree()
   {
     //DEBUG_PORT.print("line 1765 reached. ");DEBUG_PORT.println(moveStepsForwards);
     //DEBUG_PORT.print("move2ColumnsForwards = ");DEBUG_PORT.println(moveStepsForwards);
-    move2Columns();                                               // move forwards one column only after first CNC loop.
+    move2ColumnsForward();                                               // move forwards one column only after first CNC loop.
   }
   if((operationTwo==true)&&(move2ColumnsForwards == false))       // Operation two and move forwards has been completed.
   {
@@ -1784,6 +1802,7 @@ void opThree()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationThree==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation three";
       XZeroingStepsTotal = 35763;                                // 2 grids.
       dirStateCNCX = HIGH;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -1806,6 +1825,7 @@ void opFour()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationFour==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation four";
       YZeroingStepsTotal = 53645;                                // 3 grid
       dirStateCNCY = HIGH;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -1828,6 +1848,7 @@ void opFive()
     speedCNCX = 1200;                                             // 1 = one Hz.
     if(operationFive==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation five";
       XZeroingStepsTotal = 35763;                                // 2 grids.
       dirStateCNCX = LOW;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -1850,6 +1871,7 @@ void opSix()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationSix==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation six";
       YZeroingStepsTotal = 53645;                                // 3 grids
       dirStateCNCY = LOW;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -1872,6 +1894,7 @@ void opSeven()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationSeven==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation seven";
       XZeroingStepsTotal = 17881;                                // 1 grid.
       dirStateCNCX = HIGH;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -1894,6 +1917,7 @@ void opEight()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationEight==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation eight";
       YZeroingStepsTotal = 53645;                                // 3 grids.
       dirStateCNCY = HIGH;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -1916,6 +1940,7 @@ void opNine()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationNine==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation nine";
       XZeroingStepsTotal = 17881;                                // 1 grids.
       dirStateCNCX = HIGH;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -1938,6 +1963,7 @@ void opTen()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationTen==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation ten";
       YZeroingStepsTotal = 17881;                                // 1 grids.
       dirStateCNCY = LOW;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -1960,6 +1986,7 @@ void opEleven()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationEleven==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation eleven";
       XZeroingStepsTotal = 35763;                                  // two grids.
       dirStateCNCX = LOW;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -1982,6 +2009,7 @@ void opTwelve()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationTwelve==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation twelve";
       YZeroingStepsTotal = 17881;                                  // 1 grid.
       dirStateCNCY = LOW;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -2004,6 +2032,7 @@ void opThirteen()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationThirteen==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation thirteen";
       XZeroingStepsTotal = 35763;                                // 2 grids.
       dirStateCNCX = HIGH;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
@@ -2026,6 +2055,7 @@ void opFourteen()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationFourteen==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation fourteen";
       YZeroingStepsTotal = 17881;                                  // 1 grid.
       dirStateCNCY = LOW;                                        // LOW is left.
       if(YZeroingStepsTotal > YZeroingStep)
@@ -2048,6 +2078,7 @@ void opFifteen()
     speedCNCX = 1000;                                             // 1 = one Hz.
     if(operationFifteen==false)                                     // current operation not yet performed.
     {
+      operationNumber = "operation fifteen";
       XZeroingStepsTotal = 35763;                                // 2 grids.
       dirStateCNCX = LOW;                                        // LOW is forwards.
       if(XZeroingStepsTotal > XZeroingStep)
