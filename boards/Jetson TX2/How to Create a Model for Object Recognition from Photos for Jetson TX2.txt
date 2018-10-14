@@ -87,4 +87,4 @@ If you've got:
 [TRT]  building CUDA engine
 Then all is good - just wait a few minutes for it to complete and then the camera should activate.
 
-Now find / borrow a dog and test for bounding boxes!
+Now find / borrow a dog and test for bounding boxes! :)
