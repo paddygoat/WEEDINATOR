@@ -1,0 +1,90 @@
+This text assumes all the relevant software is already installed on the Jetson.
+
+Prerequisites: Jetson TX2 flashed with JetPack 3.3.
+
+Caffe version: 0.15.14
+
+DIGITS version: 6.1.1
+
+Check that all software is installed correctly by using the pre-installed dog detect model that comes with Jetpack by running this in terminal:
+
+$ sudo ~/jetson_clocks.sh && cd jetson-inference/build/aarch64/bin && ./detectnet-camera coco-dog
+It will take a few minutes to load up before the camera footage appears.
+
+To build models from scratch, turn on the DIGITS server:
+
+$ sudo ~/jetson_clocks.sh && cd digits && export CAFFE_ROOT=/home/nvidia/caffe && ./digits-devserver
+Now we're going to build the model using actual images of dogs with their associated text files:
+
+In browser naviate to http://localhost:5000/
+    
+Importing the Detection Dataset into DIGITS:
+> Datasets > Images > Object Detection
+
+Training image folder:  /media/nvidia/2037-F6FA/coco/train/images/dog
+Training label folder:  /media/nvidia/2037-F6FA/coco/train/labels/dog
+Validation image folder: /media/nvidia/2037-F6FA/coco/val/images/dog
+Validation label folder: /media/nvidia/2037-F6FA/coco/val/labels/dog
+Pad image (Width x Height): 640 x 640
+Custom classes: dontcare, dog
+Group Name: MS-COCO
+Dataset Name: coco-dog
+
+> Create
+> Home > Models > Images > Object Detection
+
+> Select Dataset: coco-dog
+Training epochs: 100
+Subtract Mean: none
+Solver Type: Adam
+Base learning rate: 2.5e-05
+> Show advanced learning options
+Policy: Exponential Decay
+Gamma: 0.99
+batch size = 2
+batch accumulation = 5  (for training on Jetson TX2)
+
+Specifying the DetectNet Prototxt:
+> Custom Network > Caffe
+The DetectNet prototxt is located at /home/nvidia/jetson-inference/data/networks/detectnet.prototxt in the repo.
+
+> Pretrained Model = /home/nvidia/jetson-inference/data/networks/bvlc_googlenet.caffemodel
+>Create
+Location of epoch snapshots: /home/nvidia/digits/digits/jobs
+You should see the model being created through a series of epochs. Make a note of the final epoch.
+
+Navigate to /home/nvidia/digits/digits/jobs and open the latest job folder and check it has the 'snapshot_iter_*****.caffemodel' files in it. Make a note of the highest '*****' number then copy and paste the folder into here for deployment: /home/nvidia/jetson-inference/build/aarch64/bin.
+
+Rename the folder to reflect the number of epochs that it passed, eg myDogModel_epoch_30.
+
+For Jetson TX2, at the end of deploy.prototxt, delete the layer named cluster:
+
+layer {
+  name: "cluster"
+  type: "Python"
+  bottom: "coverage"
+  bottom: "bboxes"
+  top: "bbox-list"
+  python_param {
+    module: "caffe.layers.detectnet.clustering"
+    layer: "ClusterDetections"
+    param_str: "640, 640, 16, 0.6, 2, 0.02, 22, 1"
+  }
+}
+Open terminal and run, changing the '*****' number accordingly:
+
+$ cd jetson-inference/build/aarch64/bin && NET=myDogModel_epoch_30 && ./detectnet-camera \
+--prototxt=$NET/deploy.prototxt \
+--model=$NET/snapshot_iter_*****.caffemodel \
+Hit return twice and you'll see various messges including: 
+
+[TRT]  attempting to open cache file dogPoo_epoch_8/snapshot_iter_3088.caffemodel.2.tensorcache
+[TRT]  cache file not found, profiling network model
+
+This is not an error!
+
+If you've got:
+[TRT]  building CUDA engine
+Then all is good - just wait a few minutes for it to complete and then the camera should activate.
+
+Now find / borrow a dog and test for bounding boxes!
