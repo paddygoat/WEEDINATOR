@@ -34,7 +34,10 @@ Dataset Name: coco-dog
 > Home > Models > Images > Object Detection
 
 > Select Dataset: coco-dog
-Training epochs: 100
+Training epochs = 16
+Snapshot interval (in epochs) = 16
+Validation interval (in epochs) = 16
+
 Subtract Mean: none
 Solver Type: Adam
 Base learning rate: 2.5e-05
