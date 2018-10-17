@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <unistd.h>			//Needed for I2C port
+#include <fcntl.h>			//Needed for I2C port
+#include <sys/ioctl.h>			//Needed for I2C port
+#include <linux/i2c-dev.h>		//Needed for I2C port
 
 #include <stdlib.h>
 #include <string.h>
@@ -39,36 +43,13 @@
 #include "cudaFont.h"
 
 #include "detectNet.h"
-#include "JHLEDBackpack.h"
-#include "JHLEDBackpack.cpp"
 
-#define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)	
-		
+#define PADDYADDRESS 0x70
+#define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
 
+int writeValue;		
+int kI2CFileDescriptor;
 bool signal_recieved = false;
-
-int getkey() {
-    int character;
-    struct termios orig_term_attr;
-    struct termios new_term_attr;
-
-    /* set the terminal to raw mode */
-    tcgetattr(fileno(stdin), &orig_term_attr);
-    memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
-    new_term_attr.c_lflag &= ~(ECHO|ICANON);
-    new_term_attr.c_cc[VTIME] = 0;
-    new_term_attr.c_cc[VMIN] = 0;
-    tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
-
-    /* read a character from the stdin stream without blocking */
-    /*   returns EOF (-1) if no character is available */
-    character = fgetc(stdin);
-
-    /* restore the original terminal attributes */
-    tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
-
-    return character;
-}
 
 void sig_handler(int signo)
 {
@@ -78,31 +59,44 @@ void sig_handler(int signo)
 		signal_recieved = true;
 	}
 }
+////////////////////////////////////////////////////////////////////////////////////////
+int i2cwrite(int writeValue) 
+{
+    int toReturn = i2c_smbus_write_byte(kI2CFileDescriptor, writeValue);
+    if (toReturn < 0) 
+    {
+        printf(" ************ Write error ************* \n") ;
+        toReturn = -1 ;
+    }
+    return toReturn ;
+}
+////////////////////////////////////////////////////////////////////////////////////////
+void paddyOpenI2C()
+{
+	int length;
+	unsigned char buffer[60] = {0};
 
-
+	
+	//----- OPEN THE I2C BUS -----
+	char *filename = (char*)"/dev/i2c-1";
+	if ((kI2CFileDescriptor = open(filename, O_RDWR)) < 0)
+	{
+		//ERROR HANDLING: you can check errno to see what went wrong
+		printf("*************** Failed to open the i2c bus ******************\n");
+		//return;
+	}
+        if( ioctl( kI2CFileDescriptor, I2C_SLAVE, PADDYADDRESS ) < 0 )
+        {
+                fprintf( stderr, "Failed to set slave address: %m\n" );
+                //return 2;
+        }
+}
+/////////////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char** argv )
 {
-////////////////////////////////////////////////////////////////////////////////////////
-
-    HT16K33 *displayMatrix = new HT16K33() ;
-    // Default I2C Bus 1
-    int err = displayMatrix->openHT16K33();
-    if (err < 0)
-    {
-        printf("Error: %d", displayMatrix->error);
-    } 
-    else 
-    {
-        printf("HT16K33 Device Address: 0x%02X\n",displayMatrix->kI2CAddress) ;
-
-        // print a hex number
-        displayMatrix->print(0xBEEF, HEX);
-        displayMatrix->writeDisplay();
-        sleep(5);
-    } 
-////////////////////////////////////////////////////////////////////////////////////////
-
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        paddyOpenI2C();
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	printf("detectnet-camera\n  args (%i):  ", argc);
 
 	for( int i=0; i < argc; i++ )
@@ -240,7 +234,7 @@ int main( int argc, char** argv )
 		if( net->Detect((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), bbCPU, &numBoundingBoxes, confCPU))
 		{
 			printf("%i bouncing boxes detected\n", numBoundingBoxes);
-		
+
 			int lastClass = 0;
 			int lastStart = 0;
 			
@@ -250,7 +244,23 @@ int main( int argc, char** argv )
 				float* bb = bbCPU + (n * 4);
 				
 				printf("bounding box %i   (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
-				
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                writeValue = static_cast<int>(bb[0]);
+                                printf(" writeValueZero   = %i \n",writeValue);
+                                i2cwrite(writeValue);
+
+                                writeValue = static_cast<int>(bb[1]);
+                                printf(" writeValueOne    = %i \n",writeValue);
+                                i2cwrite(writeValue);
+
+                                writeValue = static_cast<int>(bb[2]);
+                                printf(" writeValueTwo    = %i \n",writeValue);
+                                i2cwrite(writeValue);
+
+                                writeValue = static_cast<int>(bb[3]);
+                                printf(" writeValueThree  = %i \n",writeValue);
+                                i2cwrite(writeValue);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				if( nc != lastClass || n == (numBoundingBoxes - 1) )
 				{
 					if( !net->DrawBoxes((float*)imgRGBA, (float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), 
@@ -280,8 +290,6 @@ int main( int argc, char** argv )
 				display->SetTitle(str);	
 			}	
 		}	
-
-
 		// update display
 		if( display != NULL )
 		{
@@ -334,3 +342,4 @@ int main( int argc, char** argv )
 	printf("detectnet-camera:  this concludes the test of the video device.\n");
 	return 0;
 }
+
