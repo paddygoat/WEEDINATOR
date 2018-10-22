@@ -23,6 +23,7 @@
 #include <fcntl.h>			//Needed for I2C port
 #include <sys/ioctl.h>			//Needed for I2C port
 #include <linux/i2c-dev.h>		//Needed for I2C port
+#include <linux/types.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,8 +48,18 @@
 #define PADDYADDRESS 0x70
 #define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
 
-int writeValue;		
+int j; 
+int myBoxNumber;
+int myNumberOfBoxes;
+int myArray[4][4]; 
+int intBB[4];
+int top;
+int writeValue;	
+char writeChar;	
+char g (122);                // z
 int kI2CFileDescriptor;
+int length;
+unsigned char buffer[60] = {0};
 bool signal_recieved = false;
 
 void sig_handler(int signo)
@@ -62,41 +73,72 @@ void sig_handler(int signo)
 ////////////////////////////////////////////////////////////////////////////////////////
 int i2cwrite(int writeValue) 
 {
-    int toReturn = i2c_smbus_write_byte(kI2CFileDescriptor, writeValue);
-    if (toReturn < 0) 
-    {
-        printf(" ************ Write error ************* \n") ;
-        toReturn = -1 ;
-    }
-    return toReturn ;
+  int toReturn = i2c_smbus_write_byte(kI2CFileDescriptor, writeValue);
+  if (toReturn < 0) 
+  {
+    printf(" ************ Write error ************* \n") ;
+    toReturn = -1 ;
+  }
+  return toReturn ;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 void paddyOpenI2C()
 {
-	int length;
-	unsigned char buffer[60] = {0};
-
-	
-	//----- OPEN THE I2C BUS -----
-	char *filename = (char*)"/dev/i2c-1";
-	if ((kI2CFileDescriptor = open(filename, O_RDWR)) < 0)
-	{
-		//ERROR HANDLING: you can check errno to see what went wrong
-		printf("*************** Failed to open the i2c bus ******************\n");
+  int length;
+  unsigned char buffer[60] = {0};
+  //----- OPEN THE I2C BUS -----
+  char *filename = (char*)"/dev/i2c-1";
+  if ((kI2CFileDescriptor = open(filename, O_RDWR)) < 0)
+  {
+	//ERROR HANDLING: you can check errno to see what went wrong
+    printf("*************** Failed to open the i2c bus ******************\n");
 		//return;
-	}
-        if( ioctl( kI2CFileDescriptor, I2C_SLAVE, PADDYADDRESS ) < 0 )
-        {
-                fprintf( stderr, "Failed to set slave address: %m\n" );
+  }
+  if( ioctl( kI2CFileDescriptor, I2C_SLAVE, PADDYADDRESS ) < 0 )
+  {
+    fprintf( stderr, "Failed to set slave address: %m\n" );
                 //return 2;
-        }
+  }
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+void I2CDataHandler()
+{
+  printf(" My box number  = %i \n",myBoxNumber);
+  for( int j=0; j < 4; j++ )
+  {
+  if(j==0){i2cwrite(200+myNumberOfBoxes);  }                 // Total number of bounding boxes.
+  if(j==0){i2cwrite(140+myBoxNumber);  }                     // Designates bounding box number.
+  i2cwrite(120+j);                                           // Designates box corner number
+  printf(" intBB[j]   = %i \n",intBB[j]);
+
+  top = intBB[j];                        
+  myArray[j][0] = static_cast<int>(top/1000);
+  printf(" myArray[j][0]  = %i \n",myArray[j][0]);
+  i2cwrite(myArray[j][0]);
+
+  top = (top - myArray[j][0]*1000);
+  myArray[j][1] = static_cast<int>(top/100);
+  printf(" myArray[j][1]  = %i \n",myArray[j][1]);
+  i2cwrite(myArray[j][1]);
+
+  top = (top - myArray[j][1]*100);
+  myArray[j][2] = static_cast<int>(top/10);
+  printf(" myArray[j][2]  = %i \n",myArray[j][2]);
+  i2cwrite(myArray[j][2]);
+
+  top = (top - myArray[j][2]*10);
+  myArray[j][3] = static_cast<int>(top);
+  printf(" myArray[j][3]  = %i \n",myArray[j][3]); 
+
+  i2cwrite(myArray[j][3]);
+  }
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char** argv )
 {
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
         paddyOpenI2C();
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 	printf("detectnet-camera\n  args (%i):  ", argc);
 
 	for( int i=0; i < argc; i++ )
@@ -245,21 +287,13 @@ int main( int argc, char** argv )
 				
 				printf("bounding box %i   (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                                writeValue = static_cast<int>(bb[0]);
-                                printf(" writeValueZero   = %i \n",writeValue);
-                                i2cwrite(writeValue);
-
-                                writeValue = static_cast<int>(bb[1]);
-                                printf(" writeValueOne    = %i \n",writeValue);
-                                i2cwrite(writeValue);
-
-                                writeValue = static_cast<int>(bb[2]);
-                                printf(" writeValueTwo    = %i \n",writeValue);
-                                i2cwrite(writeValue);
-
-                                writeValue = static_cast<int>(bb[3]);
-                                printf(" writeValueThree  = %i \n",writeValue);
-                                i2cwrite(writeValue);
+                                intBB[0] = static_cast<int>(bb[0])+200;     // +200 to avoid minus values.
+                                intBB[1] = static_cast<int>(bb[1])+200;
+                                intBB[2] = static_cast<int>(bb[2])+200;
+                                intBB[3] = static_cast<int>(bb[3])+200;
+                                myBoxNumber = n;
+                                myNumberOfBoxes = numBoundingBoxes;
+                                I2CDataHandler();
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				if( nc != lastClass || n == (numBoundingBoxes - 1) )
 				{
