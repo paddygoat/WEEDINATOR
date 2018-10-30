@@ -10,6 +10,10 @@ int j;
 int numberOfBoxes;
 int xMax;
 
+int numClasses;
+int confidence;
+int imageClass;
+
 void setup() 
 {
         Serial.begin(115200);     // opens serial port, sets data rate to 9600 bps
@@ -37,7 +41,19 @@ void loop()
       {
         if(x == n)
         {
-          int confidence = (x-10)*10;
+          confidence = (x-10)*10;
+          break;
+        }
+      }
+    }
+////////////////////////////////// Number of classes::
+    if ((x>=100) && (x<=109))
+    {
+      for(int n=100; n<109; n++)
+      {
+        if(x == n)
+        {
+          numClasses = x-100;
           break;
         }
       }
@@ -49,9 +65,10 @@ void loop()
       {
         if(x == n)
         {
-          int imageClass = n-20;
-          Serial.print("Image class: ");Serial.print(imageClass);
-          Serial.print("   Confidence: ");Serial.println(confidence);
+          imageClass = n-20;
+          Serial.print("Number of classes: ");Serial.print(numClasses);
+          Serial.print(",   Image class: ");Serial.print(imageClass);
+          Serial.print(",   Confidence: ");Serial.println(confidence);
           break;
         }
       }
