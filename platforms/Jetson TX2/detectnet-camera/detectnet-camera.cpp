@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 #include <unistd.h>			//Needed for I2C port
 #include <fcntl.h>			//Needed for I2C port
 #include <sys/ioctl.h>			//Needed for I2C port
@@ -29,6 +30,10 @@
 #include <string.h>
 #include <termios.h>
 #include <time.h>
+
+#include <cmath>
+#include <cfenv>
+#include <climits>
 
 #include "gstCamera.h"
 
@@ -44,11 +49,14 @@
 #include "cudaFont.h"
 
 #include "detectNet.h"
+#include "imageNet.h"
 
+#pragma STDC FENV_ACCESS ON
 #define PADDYADDRESS 0x70
 #define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
 
-int j; 
+float obj_conf;
+int nc;                         // Class number eg 0 = dog.
 int myBoxNumber;
 int myNumberOfBoxes;
 int myArray[4][4]; 
@@ -103,34 +111,43 @@ void paddyOpenI2C()
 /////////////////////////////////////////////////////////////////////////////////////////
 void I2CDataHandler()
 {
-  printf(" My box number  = %i \n",myBoxNumber);
+  printf(" My box number  = %i \n",myBoxNumber); 
+  int conf = (std::lround(obj_conf*10)+10);                   // Inference confidence % rounded down and mapped to range (10 to 19).
+  i2cwrite(conf);
+  //printf("My confidence one: %f \n", obj_conf*100);
+  //printf("My confidence two: %i \n", conf);
+
+  printf("My image class: %i \n", nc);
+  if((nc>=0) && (nc<=79))
+  {i2cwrite(nc+20);}                                          // Image class mapped to 20 to 99;
+
   for( int j=0; j < 4; j++ )
   {
-  if(j==0){i2cwrite(200+myNumberOfBoxes);  }                 // Total number of bounding boxes.
-  if(j==0){i2cwrite(140+myBoxNumber);  }                     // Designates bounding box number.
-  i2cwrite(120+j);                                           // Designates box corner number
-  printf(" intBB[j]   = %i \n",intBB[j]);
+    if(j==0){i2cwrite(200+myNumberOfBoxes);  }                 // Total number of bounding boxes.
+    if(j==0){i2cwrite(140+myBoxNumber);  }                     // Designates bounding box number.
+    i2cwrite(120+j);                                           // Designates box corner number
+    printf(" intBB[j]   = %i \n",intBB[j]);
 
-  top = intBB[j];                        
-  myArray[j][0] = static_cast<int>(top/1000);
-  printf(" myArray[j][0]  = %i \n",myArray[j][0]);
-  i2cwrite(myArray[j][0]);
+    top = intBB[j];                        
+    myArray[j][0] = static_cast<int>(top/1000);
+    printf(" myArray[j][0]  = %i \n",myArray[j][0]);
+    i2cwrite(myArray[j][0]);
 
-  top = (top - myArray[j][0]*1000);
-  myArray[j][1] = static_cast<int>(top/100);
-  printf(" myArray[j][1]  = %i \n",myArray[j][1]);
-  i2cwrite(myArray[j][1]);
+    top = (top - myArray[j][0]*1000);
+    myArray[j][1] = static_cast<int>(top/100);
+    printf(" myArray[j][1]  = %i \n",myArray[j][1]);
+    i2cwrite(myArray[j][1]);
 
-  top = (top - myArray[j][1]*100);
-  myArray[j][2] = static_cast<int>(top/10);
-  printf(" myArray[j][2]  = %i \n",myArray[j][2]);
-  i2cwrite(myArray[j][2]);
+    top = (top - myArray[j][1]*100);
+    myArray[j][2] = static_cast<int>(top/10);
+    printf(" myArray[j][2]  = %i \n",myArray[j][2]);
+    i2cwrite(myArray[j][2]);
 
-  top = (top - myArray[j][2]*10);
-  myArray[j][3] = static_cast<int>(top);
-  printf(" myArray[j][3]  = %i \n",myArray[j][3]); 
+    top = (top - myArray[j][2]*10);
+    myArray[j][3] = static_cast<int>(top);
+    printf(" myArray[j][3]  = %i \n",myArray[j][3]); 
 
-  i2cwrite(myArray[j][3]);
+    i2cwrite(myArray[j][3]);
   }
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -181,8 +198,18 @@ int main( int argc, char** argv )
 	printf("    width:  %u\n", camera->GetWidth());
 	printf("   height:  %u\n", camera->GetHeight());
 	printf("    depth:  %u (bpp)\n\n", camera->GetPixelDepth());
-	
 
+	/*
+	 * create imageNet
+	 
+	imageNet* net = imageNet::Create(argc, argv);
+	
+	if( !net )
+	{
+		printf("imagenet-console:   failed to initialize imageNet\n");
+		return 0;
+	}
+        */
 	/*
 	 * create detectNet
 	 */
@@ -282,9 +309,12 @@ int main( int argc, char** argv )
 			
 			for( int n=0; n < numBoundingBoxes; n++ )
 			{
-				const int nc = confCPU[n*2+1];
+                                obj_conf = confCPU[n*2];     // Confidence
+				nc = confCPU[n*2+1];         // Image class eg 0 = dog
 				float* bb = bbCPU + (n * 4);
-				
+			        printf("Object class: %i \n", nc);
+                                printf("object confidence: %f \n", obj_conf*100);
+                                
 				printf("bounding box %i   (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                 intBB[0] = static_cast<int>(bb[0])+200;     // +200 to avoid minus values.
@@ -307,16 +337,26 @@ int main( int argc, char** argv )
 					CUDA(cudaDeviceSynchronize());
 				}
 			}
-		
-			/*if( font != NULL )
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// classify image
+	        /*
+
+	 const int img_class = net->Classify((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), &confidence);
+	
+		if( img_class >= 0 )
+		{
+			printf("imagenet-camera:  %2.5f%% class #%i (%s)\n", confidence * 100.0f, img_class, net->GetClassDesc(img_class));	
+
+			if( font != NULL )
 			{
 				char str[256];
 				sprintf(str, "%05.2f%% %s", confidence * 100.0f, net->GetClassDesc(img_class));
-				
+	
 				font->RenderOverlay((float4*)imgRGBA, (float4*)imgRGBA, camera->GetWidth(), camera->GetHeight(),
-								    str, 10, 10, make_float4(255.0f, 255.0f, 255.0f, 255.0f));
-			}*/
-			
+								    str, 0, 0, make_float4(255.0f, 255.0f, 255.0f, 255.0f));
+			}
+                */
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			if( display != NULL )
 			{
 				char str[256];
