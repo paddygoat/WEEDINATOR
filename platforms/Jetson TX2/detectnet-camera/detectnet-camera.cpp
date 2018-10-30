@@ -55,6 +55,8 @@
 #define PADDYADDRESS 0x70
 #define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
 
+
+int numClasses;
 float obj_conf;
 int nc;                         // Class number eg 0 = dog.
 int myBoxNumber;
@@ -120,6 +122,11 @@ void I2CDataHandler()
   printf("My image class: %i \n", nc);
   if((nc>=0) && (nc<=79))
   {i2cwrite(nc+20);}                                          // Image class mapped to 20 to 99;
+
+  printf("My image classes: %i \n", numClasses);
+  if((numClasses>=0) && (numClasses<=9))
+  {i2cwrite(numClasses+100);}                                 // Number of image classes mapped to 100 to 109;
+
 
   for( int j=0; j < 4; j++ )
   {
@@ -299,6 +306,10 @@ int main( int argc, char** argv )
 
 		// classify image with detectNet
 		int numBoundingBoxes = maxBoxes;
+                numClasses = classes;
+                printf("Number of classes: %i \n", numClasses);
+
+                //printf("Image class: %s", net->GetClassDesc(img_class))
 	
 		if( net->Detect((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), bbCPU, &numBoundingBoxes, confCPU))
 		{
@@ -313,7 +324,7 @@ int main( int argc, char** argv )
 				nc = confCPU[n*2+1];         // Image class eg 0 = dog
 				float* bb = bbCPU + (n * 4);
 			        printf("Object class: %i \n", nc);
-                                printf("object confidence: %f \n", obj_conf*100);
+                                printf("Object confidence: %f \n", obj_conf*100);
                                 
 				printf("bounding box %i   (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
