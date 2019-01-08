@@ -40,7 +40,7 @@ libgflags-dev libgoogle-glog-dev liblmdb-dev protobuf-compiler
 #
 #
 sudo usermod -a -G video $USER
-/bin/echo -e "\e[1;32mCloning Caffe into the home directory\e[0m"
+/bin/echo -e "\e[1;32mCloning Caffe into the home directory ........\e[0m"
 # Place caffe in the home directory
 cd $HOME
 # Git clone Caffe
@@ -53,13 +53,33 @@ cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF
 # Include the hdf5 directory for the includes; 16.04 previously had issues for some reason
 # The TX2 seems to handle this correctly now
 # echo "INCLUDE_DIRS += /usr/include/hdf5/serial/" >> Makefile.config
-/bin/echo -e "\e[1;32mCompiling Caffe\e[0m"
+/bin/echo -e "\e[1;32mCompiling Caffe ..........\e[0m"
 make -j6 all
 # Run the tests to make sure everything works
-/bin/echo -e "\e[1;32mRunning Caffe Tests\e[0m"
+/bin/echo -e "\e[1;32mRunning Caffe Tests ...........\e[0m"
 make -j6 runtest
 # The following is a quick timing test ...
 # tools/caffe time --model=models/bvlc_alexnet/deploy.prototxt --gpu=0
+#
+#Install DIGITS:
+/bin/echo -e "\e[1;32mInstalling DIGITS ...........\e[0m"
+pip uninstall matplotlib --user
+pip3 install -U matplotlib --user
+DIGITS_ROOT=~/digits
+git clone https://github.com/NVIDIA/DIGITS.git $DIGITS_ROOT
+#
+pip install -r $DIGITS_ROOT/requirements.txt --user
+pip install -e $DIGITS_ROOT --user
+#
+export CAFFE_ROOT=/home/nvidia/caffe
+export PYTHONPATH=/home/nvidia/caffe/python:$PYTHONPATH
+#
+#
+# Starting the server:
+#
+cd digits
+export CAFFE_ROOT=/home/nvidia/caffe
+./digits-devserver
 
 
 
