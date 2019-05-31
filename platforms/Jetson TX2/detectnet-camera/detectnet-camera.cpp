@@ -20,6 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+// sudo apt-get install libi2c-dev i2c-tools
+
+
 #include <unistd.h>			//Needed for I2C port
 #include <fcntl.h>			//Needed for I2C port
 #include <sys/ioctl.h>			//Needed for I2C port
@@ -53,7 +56,7 @@
 
 #pragma STDC FENV_ACCESS ON
 #define PADDYADDRESS 0x70
-#define DEFAULT_CAMERA -1	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
+#define DEFAULT_CAMERA 0	// -1 for onboard camera, or change to index of /dev/video V4L2 camera (>=0)
 
 
 int numClasses;
@@ -84,6 +87,7 @@ void sig_handler(int signo)
 int i2cwrite(int writeValue) 
 {
   int toReturn = i2c_smbus_write_byte(kI2CFileDescriptor, writeValue);
+  //int toReturn = i2c_smbus_write_byte_data(kI2CFileDescriptor, PADDYADDRESS, writeValue);
   if (toReturn < 0) 
   {
     printf(" ************ Write error ************* \n") ;
@@ -97,7 +101,8 @@ void paddyOpenI2C()
   int length;
   unsigned char buffer[60] = {0};
   //----- OPEN THE I2C BUS -----
-  char *filename = (char*)"/dev/i2c-1";
+  //char *filename = (char*)"/dev/i2c-1";           // Jetson TX2 + Nvidia Dev board
+  char *filename = (char*)"/dev/i2c-0";           // Jetson TX2 + Orbitty carrier
   if ((kI2CFileDescriptor = open(filename, O_RDWR)) < 0)
   {
 	//ERROR HANDLING: you can check errno to see what went wrong
@@ -205,18 +210,8 @@ int main( int argc, char** argv )
 	printf("    width:  %u\n", camera->GetWidth());
 	printf("   height:  %u\n", camera->GetHeight());
 	printf("    depth:  %u (bpp)\n\n", camera->GetPixelDepth());
-
-	/*
-	 * create imageNet
-	 
-	imageNet* net = imageNet::Create(argc, argv);
 	
-	if( !net )
-	{
-		printf("imagenet-console:   failed to initialize imageNet\n");
-		return 0;
-	}
-        */
+
 	/*
 	 * create detectNet
 	 */
@@ -232,7 +227,7 @@ int main( int argc, char** argv )
 	/*
 	 * allocate memory for output bounding boxes and class confidence
 	 */
-	const uint32_t maxBoxes = net->GetMaxBoundingBoxes();		printf("maximum bounding boxes:  %u\n", maxBoxes);
+	const uint32_t maxBoxes = net->GetMaxBoundingBoxes();
 	const uint32_t classes  = net->GetNumClasses();
 	
 	float* bbCPU    = NULL;
@@ -306,27 +301,21 @@ int main( int argc, char** argv )
 
 		// classify image with detectNet
 		int numBoundingBoxes = maxBoxes;
-                numClasses = classes;
-                printf("Number of classes: %i \n", numClasses);
-
-                //printf("Image class: %s", net->GetClassDesc(img_class))
 	
 		if( net->Detect((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), bbCPU, &numBoundingBoxes, confCPU))
 		{
-			printf("%i bouncing boxes detected\n", numBoundingBoxes);
-
+			printf("%i bounding BOXES detected\n", numBoundingBoxes);
+		
 			int lastClass = 0;
 			int lastStart = 0;
 			
 			for( int n=0; n < numBoundingBoxes; n++ )
 			{
-                                obj_conf = confCPU[n*2];     // Confidence
-				nc = confCPU[n*2+1];         // Image class eg 0 = dog
+				const int nc = confCPU[n*2+1];
 				float* bb = bbCPU + (n * 4);
-			        printf("Object class: %i \n", nc);
-                                printf("Object confidence: %f \n", obj_conf*100);
-                                
-				printf("bounding box %i   (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
+				
+				printf("detected obj %i  class #%u (%s)  confidence=%f\n", n, nc, net->GetClassDesc(nc), confCPU[n*2]);
+				printf("bounding box %i  (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                 intBB[0] = static_cast<int>(bb[0])+200;     // +200 to avoid minus values.
                                 intBB[1] = static_cast<int>(bb[1])+200;
@@ -336,7 +325,7 @@ int main( int argc, char** argv )
                                 myNumberOfBoxes = numBoundingBoxes;
                                 I2CDataHandler();
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				if( nc != lastClass || n == (numBoundingBoxes - 1) )
+if( nc != lastClass || n == (numBoundingBoxes - 1) )
 				{
 					if( !net->DrawBoxes((float*)imgRGBA, (float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), 
 						                        bbCUDA + (lastStart * 4), (n - lastStart) + 1, lastClass) )
@@ -348,33 +337,25 @@ int main( int argc, char** argv )
 					CUDA(cudaDeviceSynchronize());
 				}
 			}
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// classify image
-	        /*
-
-	 const int img_class = net->Classify((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), &confidence);
-	
-		if( img_class >= 0 )
-		{
-			printf("imagenet-camera:  %2.5f%% class #%i (%s)\n", confidence * 100.0f, img_class, net->GetClassDesc(img_class));	
-
-			if( font != NULL )
+		
+			/*if( font != NULL )
 			{
 				char str[256];
 				sprintf(str, "%05.2f%% %s", confidence * 100.0f, net->GetClassDesc(img_class));
-	
+				
 				font->RenderOverlay((float4*)imgRGBA, (float4*)imgRGBA, camera->GetWidth(), camera->GetHeight(),
-								    str, 0, 0, make_float4(255.0f, 255.0f, 255.0f, 255.0f));
-			}
-                */
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+								    str, 10, 10, make_float4(255.0f, 255.0f, 255.0f, 255.0f));
+			}*/
+			
 			if( display != NULL )
 			{
 				char str[256];
-				sprintf(str, "TensorRT build %i.%i.%i | %s | %04.1f FPS", NV_TENSORRT_MAJOR, NV_TENSORRT_MINOR, NV_TENSORRT_PATCH, net->HasFP16() ? "FP16" : "FP32", display->GetFPS());
+				sprintf(str, "TensorRT %i.%i.%i | %s | %04.1f FPS", NV_TENSORRT_MAJOR, NV_TENSORRT_MINOR, NV_TENSORRT_PATCH, precisionTypeToStr(net->GetPrecision()), display->GetFPS());
 				display->SetTitle(str);	
 			}	
 		}	
+
+
 		// update display
 		if( display != NULL )
 		{
@@ -427,4 +408,3 @@ int main( int argc, char** argv )
 	printf("detectnet-camera:  this concludes the test of the video device.\n");
 	return 0;
 }
-
