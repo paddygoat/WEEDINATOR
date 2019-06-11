@@ -63,7 +63,15 @@ int numClasses;
 float obj_conf;
 int nc;                         // Class number eg 0 = dog.
 int myBoxNumber;
+int myBoxArea[25];
+int myBoxCentreX[25];
+int myBoxCentreY[25];
 int myNumberOfBoxes;
+int nonant;
+int nonantDevianceX[9];              // The difference between the nonant actual coordinate and what they should be, to steer machine.
+int nonantDevianceY[9];
+int finalNonantDevianceX;
+int finalNonantDevianceY;
 int myArray[4][4]; 
 int intBB[4];
 int top;
@@ -118,48 +126,36 @@ void paddyOpenI2C()
 /////////////////////////////////////////////////////////////////////////////////////////
 void I2CDataHandler()
 {
-  printf(" My box number  = %i \n",myBoxNumber); 
-  int conf = (std::lround(obj_conf*10)+10);                   // Inference confidence % rounded down and mapped to range (10 to 19).
-  i2cwrite(conf);
-  //printf("My confidence one: %f \n", obj_conf*100);
-  //printf("My confidence two: %i \n", conf);
-
-  printf("My image class: %i \n", nc);
-  if((nc>=0) && (nc<=79))
-  {i2cwrite(nc+20);}                                          // Image class mapped to 20 to 99;
-
-  printf("My image classes: %i \n", numClasses);
-  if((numClasses>=0) && (numClasses<=9))
-  {i2cwrite(numClasses+100);}                                 // Number of image classes mapped to 100 to 109;
-
-
-  for( int j=0; j < 4; j++ )
+  int stop =0;
+  // Stop:
+  if (( finalNonantDevianceY >-10 ) && ( finalNonantDevianceY <10 ))
   {
-    if(j==0){i2cwrite(200+myNumberOfBoxes);  }                 // Total number of bounding boxes.
-    if(j==0){i2cwrite(140+myBoxNumber);  }                     // Designates bounding box number.
-    i2cwrite(120+j);                                           // Designates box corner number
-    printf(" intBB[j]   = %i \n",intBB[j]);
-
-    top = intBB[j];                        
-    myArray[j][0] = static_cast<int>(top/1000);
-    printf(" myArray[j][0]  = %i \n",myArray[j][0]);
-    i2cwrite(myArray[j][0]);
-
-    top = (top - myArray[j][0]*1000);
-    myArray[j][1] = static_cast<int>(top/100);
-    printf(" myArray[j][1]  = %i \n",myArray[j][1]);
-    i2cwrite(myArray[j][1]);
-
-    top = (top - myArray[j][1]*100);
-    myArray[j][2] = static_cast<int>(top/10);
-    printf(" myArray[j][2]  = %i \n",myArray[j][2]);
-    i2cwrite(myArray[j][2]);
-
-    top = (top - myArray[j][2]*10);
-    myArray[j][3] = static_cast<int>(top);
-    printf(" myArray[j][3]  = %i \n",myArray[j][3]); 
-
-    i2cwrite(myArray[j][3]);
+    i2cwrite(3);
+    stop = 1;
+  }
+  else
+  {
+    stop =0;
+  }
+  // Turn left and drive forwards:
+  if (( finalNonantDevianceX <0 ) && ( finalNonantDevianceY <-10 ) && (stop ==0))
+  {
+    {i2cwrite(1);}                                             // send the integer "1".
+  }
+  // Turn right and drive forwards:
+  if (( finalNonantDevianceX >=0 ) && ( finalNonantDevianceY <-10 ) && (stop ==0))
+  {
+    {i2cwrite(2);}
+  }
+  // Turn left and drive backwards:
+  if (( finalNonantDevianceX >=0 ) && ( finalNonantDevianceY >10 ) && (stop ==0))
+  {
+    {i2cwrite(4);}
+  }
+  // Turn right and drive backwards:
+  if (( finalNonantDevianceX <0 ) && ( finalNonantDevianceY >10 ) && (stop ==0))
+  {
+    {i2cwrite(5);}
   }
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -304,28 +300,99 @@ int main( int argc, char** argv )
 	
 		if( net->Detect((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), bbCPU, &numBoundingBoxes, confCPU))
 		{
-			printf("%i bounding BOXES detected\n", numBoundingBoxes);
+			for( int k=0; k < 9; k++ )
+			{
+ 				nonantDevianceX[k] =  0;
+				nonantDevianceY[k] =  0;
+			}
+			int averageNonantDevianceX = 0;
+			int averageNonantDevianceY = 0;
+
+			printf(" %i bounding BOXES detected\n", numBoundingBoxes);
 		
 			int lastClass = 0;
 			int lastStart = 0;
-			
-			for( int n=0; n < numBoundingBoxes; n++ )
+			int n;
+			for( n=0; n < numBoundingBoxes; n++ )
 			{
 				const int nc = confCPU[n*2+1];
 				float* bb = bbCPU + (n * 4);
 				
-				printf("detected obj %i  class #%u (%s)  confidence=%f\n", n, nc, net->GetClassDesc(nc), confCPU[n*2]);
-				printf("bounding box %i  (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                                intBB[0] = static_cast<int>(bb[0])+200;     // +200 to avoid minus values.
-                                intBB[1] = static_cast<int>(bb[1])+200;
-                                intBB[2] = static_cast<int>(bb[2])+200;
-                                intBB[3] = static_cast<int>(bb[3])+200;
+				//printf(" Detected obj %i  class #%u (%s)  confidence=%f\n", n, nc, net->GetClassDesc(nc), confCPU[n*2]);
+				//printf(" Bounding box %i  (%f, %f)  (%f, %f)  w=%f  h=%f\n", n, bb[0], bb[1], bb[2], bb[3], bb[2] - bb[0], bb[3] - bb[1]); 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                intBB[0] = static_cast<int>(bb[0]);
+                                intBB[1] = static_cast<int>(bb[1]);
+                                intBB[2] = static_cast<int>(bb[2]);
+                                intBB[3] = static_cast<int>(bb[3]);
                                 myBoxNumber = n;
+  				//printf(" My box number  = %i \n",myBoxNumber);
                                 myNumberOfBoxes = numBoundingBoxes;
-                                I2CDataHandler();
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-if( nc != lastClass || n == (numBoundingBoxes - 1) )
+                                myBoxArea[n] = (intBB[2]-intBB[0]) * (intBB[3]-intBB[1]);
+                                myBoxCentreX[n] = (intBB[0]+intBB[2])/2;
+                                myBoxCentreY[n] = (intBB[1]+intBB[3])/2;
+                                if( myBoxArea[n] < 500000 )
+				{
+                                	//printf(" Box Area (%i) = %i \n",n,myBoxArea[n]);                          // Print the area (size) of the box.
+                                	//printf(" Box Centre (x,%i) = %i \n",n,myBoxCentreX[n]);                   // Print the box centre (x) coordinate.
+                                	//printf(" Box Centre (y,%i) = %i \n",n,myBoxCentreY[n]);                   // Print the box centre (y) coordinate.
+					// Divide up into 'Nonants' (the 9 version of quadrants).                 // 1200/3 = 400, 720/3 = 240.
+					// Or divide into sextants eg 1920/3 = 640:
+					if (( myBoxCentreX[n] <= 640 ) && ( myBoxCentreY[n] <= 540 ))
+					{
+						nonant = 0;
+						nonantDevianceX[0] =  myBoxCentreX[n] -320;
+						nonantDevianceY[0] =  myBoxCentreY[n] -270;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+					if (( myBoxCentreX[n] >= 641 ) && ( myBoxCentreX[n] <= 1280 ) && ( myBoxCentreY[n] <= 540 ))
+					{
+						nonant = 1;
+						nonantDevianceX[1] =  myBoxCentreX[n] -960;
+						nonantDevianceY[1] =  myBoxCentreY[n] -270;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+					if (( myBoxCentreX[n] >= 1281 ) && ( myBoxCentreY[n] <= 540 ))
+					{
+						nonant = 2;
+						nonantDevianceX[2] =  myBoxCentreX[n] -1600;
+						nonantDevianceY[2] =  myBoxCentreY[n] -270;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+					if (( myBoxCentreX[n] <= 640 ) && ( myBoxCentreY[n] >= 541 ))
+					{
+						nonant = 3;
+						nonantDevianceX[3] =  myBoxCentreX[n] -320;
+						nonantDevianceY[3] =  myBoxCentreY[n] -810;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+					if (( myBoxCentreX[n] >= 641 ) && ( myBoxCentreX[n] <= 1281 ) && ( myBoxCentreY[n] >= 541 ))
+					{
+						nonant = 4;
+						nonantDevianceX[4] =  myBoxCentreX[n] -960;
+						nonantDevianceY[4] =  myBoxCentreY[n] -810;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+					if (( myBoxCentreX[n] >= 1281 ) && ( myBoxCentreY[n] >= 541 ))
+					{
+						nonant = 5;
+						nonantDevianceX[5] =  myBoxCentreX[n] -1600;
+						nonantDevianceY[5] =  myBoxCentreY[n] -810;
+						//printf(" Nonant (%i) = %i \n",n,nonant);
+					}
+
+
+					//printf(" Nonant (%i) = %i \n",n,nonant);
+                                	//printf("..................................................... \n");
+                                	//I2CDataHandler();
+				}
+				else
+				{
+					printf(" Box too big \n");
+					printf("..................................................... \n");
+				}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				if( nc != lastClass || n == (numBoundingBoxes - 1) )
 				{
 					if( !net->DrawBoxes((float*)imgRGBA, (float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), 
 						                        bbCUDA + (lastStart * 4), (n - lastStart) + 1, lastClass) )
@@ -336,8 +403,24 @@ if( nc != lastClass || n == (numBoundingBoxes - 1) )
 
 					CUDA(cudaDeviceSynchronize());
 				}
+			}  // End of for( int n=0; n < numBoundingBoxes; n++ )
+
+			int totalNonantDevianceX =0;
+			int totalNonantDevianceY =0;
+			finalNonantDevianceX =0;
+			finalNonantDevianceY =0;
+			for( int k=0; k < 9; k++ )
+			{
+ 				totalNonantDevianceX = totalNonantDevianceX + nonantDevianceX[k];
+				totalNonantDevianceY = totalNonantDevianceY + nonantDevianceY[k];
 			}
-		
+			finalNonantDevianceX = totalNonantDevianceX/n;
+			finalNonantDevianceY = totalNonantDevianceY/n;
+			I2CDataHandler();
+			printf(" finalNonantDevianceX = %i \n",finalNonantDevianceX);
+			printf(" finalNonantDevianceY = %i \n",finalNonantDevianceY);
+			printf("..................................................... \n");
+
 			/*if( font != NULL )
 			{
 				char str[256];
