@@ -10,6 +10,8 @@
 #include "speaker.h"
 #include "util.h"
 #include "waypoint.h"
+#include "encoder.h"
+
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -18,6 +20,7 @@ setupState_t setupState = BEFORE_SETUP;
 
 void setup()
 {
+  setupEncoder();
   pinMode(BLUE_LED,OUTPUT);
   pinMode(ORANGE_LED,OUTPUT);
   pinMode(51,OUTPUT);
@@ -37,8 +40,6 @@ void setup()
 
   initNavData();
 
-  if (useCompass)
-    initCompass();
 
   if (useFona)
     initFONA();
@@ -74,5 +75,5 @@ void loop()
   yield        ();
   pixyModule   ();
   loadWaypoints();
-
+  encoderReadings();
 } // loop

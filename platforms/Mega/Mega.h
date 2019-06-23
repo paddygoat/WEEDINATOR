@@ -31,7 +31,7 @@ const uint32_t DEBUG_BAUD = 115200;
 
 #endif
 
-
+// encoder is on pin 2 and 3.
 const int FONA_RST            = 5;
 const int SPEAKER             = 10;
 const int I2C_REQUEST         = 12;

@@ -82,7 +82,7 @@ void pixyModule()
   }
 ///////////////////////////////////////////////////////////////// 
   //DEBUG_PORT.print( F("PAN POS:       ") );DEBUG_PORT.println(panError);
-  DEBUG_PORT.print( F("Barcode Y position value:    ") );DEBUG_PORT.println(barcodeValue);
-  DEBUG_PORT.print( F("Barcode:    ") );DEBUG_PORT.println(barcode);
+  //DEBUG_PORT.print( F("Barcode Y position value:    ") );DEBUG_PORT.println(barcodeValue);
+  //DEBUG_PORT.print( F("Barcode:    ") );DEBUG_PORT.println(barcode);
 } // pixyModule
 

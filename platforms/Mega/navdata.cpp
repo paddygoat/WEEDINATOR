@@ -10,6 +10,7 @@
 #include "units.h"
 #include "util.h"
 #include "waypoint.h"
+#include "encoder.h"
 
 navData_t navData;
 
@@ -112,6 +113,9 @@ void updateNavData()
 
   DEBUG_PORT.print( F("Pixy Barcode: ") );
   DEBUG_PORT.println( navData.barcode() );
+
+  DEBUG_PORT.print( F("Encoder reading: ") );
+  DEBUG_PORT.println( encoderPos );
 
   DEBUG_PORT.println();
 
