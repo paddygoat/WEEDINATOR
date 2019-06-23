@@ -9,7 +9,6 @@ int actuallySteering =LOW;
 int difference=0;
 int previousFinalSteeringValue=15300;
 
-long finalSteeringValue =0;
 int forwards = LOW;
 int backwards =LOW;
 
@@ -43,8 +42,8 @@ void turningWhenStationary()
   
   if((clockW==HIGH)&&(rightHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
-     digitalWrite(10,HIGH); // Backwards
-     digitalWrite(12,LOW);  // Forwards
+     digitalWrite(7,HIGH); // Backwards
+     digitalWrite(11,LOW);  // Forwards
      speedTimerAsyncLeftA = 650;                                     // Between 1000 and 500. Neutral is 665.
      speedTimerAsyncRightA = 685;                                     // Between 1000 and 500. Neutral is 665.
      moveLeftMotor();
@@ -52,8 +51,8 @@ void turningWhenStationary()
   }
   if((antiClockW==HIGH)&&(rightHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
-     digitalWrite(10,LOW); // Forwards
-     digitalWrite(12,HIGH);  // Backwards
+     digitalWrite(7,LOW); // Forwards
+     digitalWrite(11,HIGH);  // Backwards
      speedTimerAsyncLeftA = 685;                                     // Between 1000 and 500. Neutral is 665.
      speedTimerAsyncRightA = 650;                                     // Between 1000 and 500. Neutral is 665.
      moveLeftMotor();
@@ -61,8 +60,8 @@ void turningWhenStationary()
   }
   if((clockW==HIGH)&&(leftHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
-     digitalWrite(10,HIGH); // Backwards
-     digitalWrite(12,LOW);  // Forwards
+     digitalWrite(7,HIGH); // Backwards
+     digitalWrite(11,LOW);  // Forwards
      speedTimerAsyncLeftA = 650;                                     // Between 1000 and 500. Neutral is 665.
      speedTimerAsyncRightA = 685;                                     // Between 1000 and 500. Neutral is 665.
      moveLeftMotor();
@@ -70,8 +69,8 @@ void turningWhenStationary()
   }
   if((antiClockW==HIGH)&&(leftHandLock==HIGH)&&(stationary==HIGH)&&(actuallySteering==HIGH)) // Actually steering when stationary
   {
-     digitalWrite(10,LOW); // Forwards
-     digitalWrite(12,HIGH);  // Backwards
+     digitalWrite(7,LOW); // Forwards
+     digitalWrite(11,HIGH);  // Backwards
      speedTimerAsyncLeftA = 685;                                     // Between 1000 and 500. Neutral is 665.
      speedTimerAsyncRightA = 650;                                     // Between 1000 and 500. Neutral is 665.
      moveLeftMotor();
@@ -215,16 +214,16 @@ void turningWhenStationary()
 void clockWise()
 {
   clockW=HIGH;antiClockW=LOW;
-  digitalWrite(6,LOW); //DIRECTION LOW is clockwise
-  digitalWrite(8,LOW); //DIRECTION LOW is clockwise
+  digitalWrite(3,LOW); //DIRECTION LOW is clockwise
+  digitalWrite(5,LOW); //DIRECTION LOW is clockwise
   unsigned long currentMicrosOne = micros();
   unsigned long currentMicrosTwo = micros();
 }
 void antiClockWise()
 {
   clockW=LOW;antiClockW=HIGH;
-  digitalWrite(6,HIGH); //Anti-clockwise
-  digitalWrite(8,HIGH); //Anti-clockwise
+  digitalWrite(3,HIGH); //Anti-clockwise
+  digitalWrite(5,HIGH); //Anti-clockwise
   unsigned long currentMicrosOne = micros();
   unsigned long currentMicrosTwo = micros();
 }
@@ -294,14 +293,14 @@ void differential()
     if (currentMicrosTwo - previousMicrosTwo >= intervalTwo)
     {
       changeStateTwo();
-      digitalWrite(7,ledStateTwo); //STEP
+      digitalWrite(4,ledStateTwo); //STEP
       wheelsPosition++;
       previousFinalSteeringValue++; 
     }
     if (currentMicrosOne - previousMicrosOne >= intervalOne)
     {
       changeStateOne();
-      digitalWrite(5,ledStateOne); //STEP
+      digitalWrite(2,ledStateOne); //STEP
     }
   }
 //////////////////////////////////////////////////////////////////////////////////////////////////////  
@@ -313,12 +312,12 @@ void differential()
     if (currentMicrosOne - previousMicrosOne >= intervalOne)
     {
       changeStateOne();
-      digitalWrite(7,ledStateOne); //STEP
+      digitalWrite(4,ledStateOne); //STEP
     }
     if (currentMicrosTwo - previousMicrosTwo >= intervalTwo)
     {
       changeStateTwo();
-      digitalWrite(5,ledStateTwo); //STEP
+      digitalWrite(2,ledStateTwo); //STEP
       wheelsPosition++;
       previousFinalSteeringValue++;
     }
@@ -332,14 +331,14 @@ void differential()
     if (currentMicrosTwo - previousMicrosTwo >= intervalTwo)
     {
       changeStateTwo();
-      digitalWrite(7,ledStateTwo); //STEP
+      digitalWrite(4,ledStateTwo); //STEP
       wheelsPosition--;
       previousFinalSteeringValue--;
     }
     if (currentMicrosOne - previousMicrosOne >= intervalOne)
     {
       changeStateOne();
-      digitalWrite(5,ledStateOne); //STEP
+      digitalWrite(2,ledStateOne); //STEP
     }
   }
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,12 +350,12 @@ void differential()
     if (currentMicrosOne - previousMicrosOne >= intervalOne)
     {
       changeStateOne();
-      digitalWrite(7,ledStateOne); //STEP
+      digitalWrite(4,ledStateOne); //STEP
     }
     if (currentMicrosTwo - previousMicrosTwo >= intervalTwo)
     {
       changeStateTwo();
-      digitalWrite(5,ledStateTwo); //STEP
+      digitalWrite(2,ledStateTwo); //STEP
       wheelsPosition--;
       previousFinalSteeringValue--;
     }

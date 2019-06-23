@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "updateTFT.h"
 #include "speech.h"
+#include "encoder.h"
 
 /* LMU uninitialised data */
 StartOfUninitialised_LMURam_Variables
@@ -52,6 +53,10 @@ float RAxisCurrentSensorWeighting =0;
 
 long moveStepsForwards =0;
 long totalMoveStepsForwards =79601;             // 558.8 mm (22").
+long jetsonReading =0;                           // analogRead(A7).
+int makeTurnValue =0;
+int finalSteeringValue =0;
+int finalDriveValue =0;
 
 EndOfInitialised_LMURam_Variables
 
@@ -60,19 +65,20 @@ EndOfInitialised_LMURam_Variables
 void setup()
 {  
   delay(5000);
-  pinMode(5,OUTPUT); //STEP Steer Motor
-  pinMode(6,OUTPUT); //DIRECTION HIGH is clockwise
-  pinMode(7,OUTPUT); //STEP Steer Motor
-  pinMode(8,OUTPUT); //DIRECTION HIGH is clockwise
-  pinMode(9,OUTPUT); //STEP Drive Motor
-  pinMode(10,OUTPUT); //DIRECTION HIGH is clockwise
-  pinMode(11,OUTPUT); //STEP Drive Motor
-  pinMode(12,OUTPUT); //DIRECTION HIGH is clockwise
-
+  pinMode(2,OUTPUT); //STEP Steer Motor
+  pinMode(3,OUTPUT); //DIRECTION HIGH is clockwise
+  pinMode(4,OUTPUT); //STEP Steer Motor
+  pinMode(5,OUTPUT); //DIRECTION HIGH is clockwise
+  pinMode(6,OUTPUT); //STEP Drive Motor
+  pinMode(7,OUTPUT); //DIRECTION HIGH is clockwise
+  pinMode(10,OUTPUT); //Seems to be broken on my machine! Or maybe not compatible with motor step drive? Moved to pin 13 instead.
+  pinMode(11,OUTPUT); //DIRECTION HIGH is clockwise
+  pinMode(13,OUTPUT); //STEP Drive Motor   
+  
   pinMode(35, OUTPUT);   // Step x axis RHS
   digitalWrite(35,LOW);
-  pinMode(13, OUTPUT);   // Step x axis LHS
-  digitalWrite(13,LOW);
+  pinMode(12, OUTPUT);   // Step x axis LHS
+  digitalWrite(12,LOW);
   pinMode(53, OUTPUT);   // Direction x axis, LOW is forwards
   digitalWrite(53,LOW);
   pinMode(33, OUTPUT);   // Step y axis
@@ -80,12 +86,20 @@ void setup()
   pinMode(51, OUTPUT);   // Direction y axis, LOW is forwards
   digitalWrite(51,LOW);
   pinMode(31, OUTPUT);   // Step z axis
+  digitalWrite(31,LOW);
   pinMode(27, OUTPUT);   // Direction z axis, LOW is forwards
+  digitalWrite(27,LOW);
   pinMode(29, OUTPUT);   // Step r axis
+  digitalWrite(29,LOW);
+   
+  pinMode(37, OUTPUT);   // LED
+  digitalWrite(37,LOW);
+  pinMode(39,OUTPUT);    // LED
+  digitalWrite(39,LOW);
   
   pinMode(25,INPUT_PULLUP);    // Turn on/off drive motors
   pinMode(23,INPUT_PULLUP);    // Control state switch eg manual / autonomous
-  //pinMode(39,INPUT_PULLUP);    // 
+
   pinMode(49,INPUT_PULLUP);    // Limit switch RHS forwards X
   pinMode(47,INPUT_PULLUP);    // Limit switch LHS forwards X 
   pinMode(45,INPUT_PULLUP);    // Limit switch down Z
@@ -118,7 +132,7 @@ void loop()
     preventSteering=true;
   }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
-  weedingBegins();
+  //weedingBegins();                                        // Main link to CNC stuff.
 /////////////////////////////////////////////////////////////
   turningWhenStationary();                                   // Accounts for turning when stationary.
 /////////////////////////////////////////////////////////////  
@@ -173,6 +187,7 @@ void loop()
 /* CPU1 Uninitialised Data */
 StartOfUninitialised_CPU1_Variables
 /* Put your CPU1 fast access variables that have no initial values here e.g. uint32 CPU1_var; */
+
 EndOfUninitialised_CPU1_Variables
 
 /* CPU1 Initialised Data */
@@ -181,7 +196,7 @@ StartOfInitialised_CPU1_Variables
 long steeringValue =0;
 int k=0;
 int m=0;
-int makeTurnValue =0;
+int makeTurn = LOW;
 
 int ic=0;
 int icMax =0;
@@ -194,14 +209,20 @@ int millisCalcFive =0;
 int millisCalcSix =0;
 int ACFrequency = 50; // Hertz
 
+
+
 EndOfInitialised_CPU1_Variables
   
 void setup1() 
 {
   intervalFive = 1000 / ACFrequency; // Milliseconds.
+  IncrEnc_Init();  // Encoder
+  encoderCount = 10000;
 }
 void loop1() 
 {
+//////////////////////////////////////////////////////////////////////////////
+  encoderReadings();
 ////////////////////////////////////////////////////////////////////////////// 
   ic = 0;
   runningCurrentValueRAxis = 0;
@@ -212,6 +233,7 @@ void loop1()
     currentSensorValueFive = analogRead(A5);
     currentSensorValueSix = analogRead(A6);
     currentSensorValueRAxis = analogRead(A4);          // Dc current on R axis power supply
+
     runningCurrentValueRAxis = currentSensorValueRAxis + runningCurrentValueRAxis;
     if(currentSensorValueFive > maxCurrentValueFive)
     {
@@ -231,26 +253,47 @@ void loop1()
 //////////////////////////////////////////////////////////////////////////////
   long driveValue=0;
   k=0;
-  if(controlState==LOW)                // Autonomous mode disabled !!!!!!!!!!!!
-  {
+  //if(controlState==LOW)                // Autonomous mode disabled !!!!!!!!!!!!
+  //{
     while(k<100)
     { 
+      jetsonReading = jetsonReading + analogRead(A7);
       driveValue = driveValue + analogRead(A1);
       k++;
     }
       finalDriveValue = driveValue/k;
-  }
+      jetsonReading = jetsonReading/k;
+  //}
 ////////////////////////////////////////////////////////////////////////////////////////
   //ArduinoPwmFreq(4,390); // set PWM freq on pin 4 to 1 kHz
   //analogWrite(4,finalDriveValue/4);
 ///////////////////////////////////////////////////////////////////////////////////////  
   //controlState = digitalRead(23); 
+  if(navState==HIGH)
+  { 
+    int jetsonReadingX = jetsonReading;
+    //map(jetsonReadingX,0,1024,-100,100);      // map 0 -> -100, 1024 -> 100.
+    makeTurnValue = jetsonReadingX;
+  }
+  else
+  {
+    makeTurnValue = bearingDegrees - headingDegrees;  // GPS
+  }
+
+  if((makeTurnValue)>0)
+  {
+    makeTurn = HIGH;
+  }
+  else
+  {
+    makeTurn = LOW;
+  }
   if (preventSteering==false)
   {
     if(controlState==HIGH)
     {
-      steeringValue = makeTurnValue*5 + 512; // Adjust steering to compass sensitivity
-      finalSteeringValue = 30*steeringValue;
+      steeringValue = makeTurnValue*5 + 10000;
+      finalSteeringValue = steeringValue;
     }
     else
     {
@@ -300,7 +343,6 @@ unsigned long millisCalc2 = 0;
 unsigned long millisCalc3 = 0;
 unsigned long millisCalc4 = 0;
 
-int makeTurn = LOW;
 String text5 = " .Make a clockwise turn. ";
 int ledBlueState = LOW;
 
@@ -317,12 +359,6 @@ void setup2()
   initNavData();
   setupTFT();
 
-  tone(2,1000,1000);   // pin,pitch,duration
-  delay(1000);
-  noTone(2);
-
-  pinMode(37, OUTPUT);   // BLUE LED
-  digitalWrite(37,LOW);
   delay(2000);
   while (emicPort.available()) 
   {
@@ -332,32 +368,16 @@ void setup2()
 
 void loop2() 
 {
-  tone(2,pixyBarData*20);   // pin,pitch,duration
-  if (ledBlueState == LOW) 
-  {
-      ledBlueState = HIGH;
-  } else 
-  {
-      ledBlueState = LOW;
-  }
-  digitalWrite(37, ledBlueState);
-  if(navState==HIGH)
-  { 
-    makeTurnValue = pixyPanData - 180 -5;   // Pixy +10 = 60mm to right.
-  }
-  else
-  {
-    makeTurnValue = bearingDegrees - headingDegrees;  // GPS
-  }
+  //tone(2,jetsonReading + 500);   // pin,pitch,duration
+  //if (ledBlueState == LOW) 
+  //{
+  //    ledBlueState = HIGH;
+  //} else 
+  //{
+  //    ledBlueState = LOW;
+  //}
+  //digitalWrite(37, ledBlueState);
 
-  if((makeTurnValue)>0)
-  {
-    makeTurn = HIGH;
-  }
-  else
-  {
-    makeTurn = LOW;
-  }
 
   //delay(200);
   unsigned long currentMillisCore3 = millis();

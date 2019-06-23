@@ -1,4 +1,5 @@
 #include "debug.h"
+#include "encoder.h"
 #include "TC275.h"       // Dont delete this !!!! 
 
 ////////////////////////////////////////////////////////////////
@@ -20,6 +21,11 @@ void debug()
   //DEBUG_PORT.print("IntervalThree= ");DEBUG_PORT.println(intervalThree,8);
     
   DEBUG_PORT.println();
+  
+  DEBUG_PORT.print("Encoder count:      ");DEBUG_PORT.println(encoderCount);
+  DEBUG_PORT.print("Encoder direction:  ");DEBUG_PORT.println(encoderDirection);
+  DEBUG_PORT.print("Current encoder value:  ");DEBUG_PORT.println(currentEncoderValue);
+  
   //DEBUG_PORT.print("bothXAxisLimitSwitches:  ");DEBUG_PORT.println(bothXAxisLimitSwitches);
   //DEBUG_PORT.print("LSFXLHS:  ");DEBUG_PORT.println(LSFXLHS);
   //DEBUG_PORT.print("maxCurrentValueFive:  ");DEBUG_PORT.println(maxCurrentValueFive,2);
@@ -35,19 +41,21 @@ void debug()
   //DEBUG_PORT.print("Way point  = ");DEBUG_PORT.println(navData.waypointID());
   //DEBUG_PORT.print("distanceMM = ");DEBUG_PORT.println(distanceMM);
   //DEBUG_PORT.println();
-//  DEBUG_PORT.print("controlState value = ");DEBUG_PORT.println(controlState);
-//  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
-//  DEBUG_PORT.print("Make Turn      Value= ");DEBUG_PORT.println(makeTurnValue);
+  DEBUG_PORT.print("ControlState value = ");DEBUG_PORT.println(controlState);
+  DEBUG_PORT.print("NavState  =          ");DEBUG_PORT.println(navState);
+  DEBUG_PORT.print("Final Steering Value= ");DEBUG_PORT.println(finalSteeringValue);
+  DEBUG_PORT.print("Make Turn Value= ");DEBUG_PORT.println(makeTurnValue);
   //DEBUG_PORT.print("Previous steering Value= ");DEBUG_PORT.println(previousFinalSteeringValue);
   //DEBUG_PORT.print("Difference= ");DEBUG_PORT.println(difference);
   //DEBUG_PORT.print("wheelsPosition= ");DEBUG_PORT.println(wheelsPosition);
   DEBUG_PORT.print("Final Drive Value = ");DEBUG_PORT.println(finalDriveValue);
+  DEBUG_PORT.print("JetsonReading = ");DEBUG_PORT.println(jetsonReading);
   //DEBUG_PORT.print("speedTimerAsyncLeftA =  ");DEBUG_PORT.println(speedTimerAsyncLeftA);
   //DEBUG_PORT.print("intervalTimerAsyncRightA =  ");DEBUG_PORT.println(intervalTimerAsyncRightA);  
   //DEBUG_PORT.print("intervalTimerAsyncLeftA =   ");DEBUG_PORT.println(intervalTimerAsyncLeftA); 
-  //DEBUG_PORT.print("preventSteering =   ");DEBUG_PORT.println(preventSteering);
+  DEBUG_PORT.print("preventSteering =   ");DEBUG_PORT.println(preventSteering);
   
-//  DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
+  //DEBUG_PORT.print("Steering Value= ");DEBUG_PORT.println(steeringValue);
   //DEBUG_PORT.print("analogueRead A1= ");DEBUG_PORT.println(driveValue);
   //DEBUG_PORT.print("IntervalOne= ");DEBUG_PORT.println(intervalOne);
   //DEBUG_PORT.print("IntervalTwo= ");DEBUG_PORT.println(intervalTwo);
@@ -57,18 +65,19 @@ void debug()
   //DEBUG_PORT.print("velocityControlRight= ");DEBUG_PORT.println(velocityControlRight); 
   //DEBUG_PORT.print("ATSDState= ");DEBUG_PORT.println(ATSDState);
   //DEBUG_PORT.print("Stationary state= ");DEBUG_PORT.println(stationary);
-  DEBUG_PORT.print("Pixy pan data  = ");DEBUG_PORT.println(pixyPanData);
+  //DEBUG_PORT.print("Pixy pan data  = ");DEBUG_PORT.println(pixyPanData);
   //DEBUG_PORT.print("Pixy bar data  = ");DEBUG_PORT.println(pixyBarData);
   //DEBUG_PORT.print("Pixy barcode  = ");DEBUG_PORT.println(pixyBarcode);
-  //DEBUG_PORT.print("NavState  = ");DEBUG_PORT.println(navState);
-  //DEBUG_PORT.print("moveStepsForwards: ");DEBUG_PORT.println(moveStepsForwards);
-  //DEBUG_PORT.print("barcodeReached: ");DEBUG_PORT.println(barcodeReached);
-  DEBUG_PORT.print("emicCount: ");DEBUG_PORT.println(emicCount);
+
+  DEBUG_PORT.print("move2ColumnsForwards: ");DEBUG_PORT.println(move2ColumnsForwards);
+  DEBUG_PORT.print("barcodeReached: ");DEBUG_PORT.println(barcodeReached);
+  //DEBUG_PORT.print("emicCount: ");DEBUG_PORT.println(emicCount);
   //DEBUG_PORT.print("  LHS amps max:  ");DEBUG_PORT.print(runningmaxCurrentValueFive,2);
   //DEBUG_PORT.print("  RHS amps max:  ");DEBUG_PORT.println(runningmaxCurrentValueSix,2);
   //DEBUG_PORT.print("finalCurrentSensorValueRAxis:  ");DEBUG_PORT.println(finalCurrentSensorValueRAxis);
   //DEBUG_PORT.print("currentSensorValueRAxis:       ");DEBUG_PORT.println(currentSensorValueRAxis);  
   //DEBUG_PORT.print("runningCurrentValueRAxis:      ");DEBUG_PORT.println(runningCurrentValueRAxis);
+  DEBUG_PORT.print("CNC operation:: ");DEBUG_PORT.println(operationNumber);
   
 //  if(forwards==HIGH)
 //    {

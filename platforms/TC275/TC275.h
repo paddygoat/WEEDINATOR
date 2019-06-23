@@ -4,6 +4,12 @@
 #include <stdint.h>
 
 #include <HardwareSerial.h>
+
+extern long jetsonReading;
+extern int makeTurnValue;
+extern int finalSteeringValue;
+extern int finalDriveValue;
+
 #define DEBUG_PORT SerialASC
 const uint32_t DEBUG_BAUD = 115200;
 

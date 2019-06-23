@@ -1,8 +1,6 @@
 #include "drive.h"
 #include "TC275.h"
 
-int finalDriveValue =0;
-
 unsigned long previousMicrosTimerAsyncLeftA = 0; 
 unsigned long previousMicrosTimerAsyncLeftB = 0;
 unsigned long previousMicrosTimerAsyncRightA = 0; 
@@ -74,8 +72,8 @@ void moveMotors()
       asyncStateLeft = HIGH;
       previousMicrosTimerAsyncLeftB = currentMicros;
     }
-    digitalWrite(9,asyncStateLeft);
-    digitalWrite(11,asyncStateLeft);
+    digitalWrite(6,asyncStateLeft);
+    digitalWrite(13,asyncStateLeft);
   }
 }
 void moveRightMotor()                                         // For steering when stationary.
@@ -97,7 +95,7 @@ void moveRightMotor()                                         // For steering wh
       asyncStateRight = HIGH;
       previousMicrosTimerAsyncRightB = currentMicros;
     }
-    digitalWrite(9,asyncStateRight);
+    digitalWrite(6,asyncStateRight);
   }
 }
 void moveLeftMotor()
@@ -119,7 +117,7 @@ void moveLeftMotor()
       asyncStateLeft = HIGH;
       previousMicrosTimerAsyncLeftB = currentMicros;
     }
-    digitalWrite(11,asyncStateLeft);
+    digitalWrite(13,asyncStateLeft);
   }
 }
 void torqueDifferential()

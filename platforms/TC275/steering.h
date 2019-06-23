@@ -11,7 +11,6 @@ extern int actuallySteering;
 extern int difference;
 extern int previousFinalSteeringValue;
 
-extern long finalSteeringValue;
 extern int forwards;
 extern int backwards;
 

@@ -1,4 +1,15 @@
+/*
+Upon flicking switch on left to 'on', control state becomes 'true' and CNC routine is started.
+Auto steering is disengaged by setting 'preventSteering' to 'true' to stop constant 'hunting' of the steering.
+CNC goes through an initial setup to find it's position on x,y and z by means of triggering limits switches.
+CNC ten goes through 15 stages of weeding through predetermined distances on x and y axes.
+Once finished, 'move2ColumnsForwards becomes 'true' and 'preventSteering' becomes 'false'.
+Steering is now determined via 'makeTurnValue' by the position of the right hand switch, currently GPS by 'false' and Jetson by 'true'.
+When 'barcodeReached' becomes 'true', the CNC routine is started again, but from number 3 and steering is prevented once more.
+'move2ColumnsForwards' and 'barcodeReached' are set back to 'false'.
+*/
 #include "CNC.h"
+#include "encoder.h"
 #include "TC275.h"
 ////////////////////////////////////////////////////////////////
 float intervalCNCXOne = 0;
@@ -43,7 +54,7 @@ uint8_t setupStateX = LOW;           // Change to HIGH to skip CNC setups.
 uint8_t setupStateY = LOW;
 uint8_t setupStateZ = LOW;
 
-String operationNumber = "one";
+String operationNumber = "NULL";
 
 bool operationZero = false;
 bool operationOne = false;
@@ -89,6 +100,8 @@ int pixyBarData =0;
 int pixyBarcode =0;
 
 int navState=LOW;        // Use Pixy or GPS
+int currentEncoderValue = 0;
+int previousEncoderValue = 0;
 ////////////////////////////////////////////////////////////////
 
 void CNC_TIMER_X()
@@ -115,7 +128,7 @@ void CNC_TIMER_X()
 
       if ((LSFXLHS==LOW)||(bothXAxisLimitSwitches==true))    // HIGH means switch activated.
       {
-        digitalWrite(13,stepStateCNCX);                      // LHS
+        digitalWrite(12,stepStateCNCX);                      // LHS
       }
       if ((LSFXRHS==LOW)||(bothXAxisLimitSwitches==true))    // HIGH means switch activated.
       {
@@ -125,7 +138,9 @@ void CNC_TIMER_X()
       {
         bothXAxisLimitSwitches = true;
       }
-
+      //DEBUG_PORT.print("Both limit switches activated = ");DEBUG_PORT.println(bothXAxisLimitSwitches);
+      //DEBUG_PORT.print("LSFXLHS = ");DEBUG_PORT.println(LSFXLHS);
+      //DEBUG_PORT.print("LSFXRHS = ");DEBUG_PORT.println(LSFXRHS);
 ///////////////////////////////////////////////////////////////////////////////
       prevMicrosCNCXOne = currentMicros;
     }
@@ -225,7 +240,7 @@ void CNC_SETUP_X()
   else
   {
     digitalWrite(35,LOW);
-    digitalWrite(13,LOW);
+    digitalWrite(12,LOW);
   }                                                           // Initial movement forward for zeroing ends
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
   if((LSFXRHS==HIGH)&&(controlState==HIGH))                       // X axis switch is closed and autonomous(HGH)
@@ -253,7 +268,7 @@ void CNC_SETUP_X()
     else
     {
       digitalWrite(35,LOW);
-      digitalWrite(13,LOW);
+      digitalWrite(12,LOW);
     }     
   }             // if(XZeroing == HIGH)
   if(XZeroingStepsTotal <= XZeroingStep)                     // Tells us that setup of X axis is complete.
@@ -380,6 +395,7 @@ void opZero()
 {
   if(operationZero==false)                                      // current operation not yet performed.
   {
+    //DEBUG_PORT.println("operationZero in progress.");
     operationZero = true;
     XZeroingStep=0;
     YZeroingStep=0;
@@ -391,6 +407,7 @@ void opOne()
   speedCNCX = 2000;                                            // 1 = one Hz.
   if(operationOne==false)                                      // current operation not yet performed.
   {
+    //DEBUG_PORT.println("operationOne in progress.");
     operationNumber = "one";
     XZeroingStepsTotal = 17881;                                // one grid
     dirStateCNCX = LOW;                                        // LOW is forwards.
@@ -432,6 +449,7 @@ void opTwo()
     CNC_TIMER_R();                                               // R axis motor claw starts turning.
     if(operationTwo==false)
     {
+      //DEBUG_PORT.println("operationTwo in progress.");
       operationNumber = "two";
       YZeroingStepsTotal = 26822;                                // One and a half grids.
       dirStateCNCY = LOW;                                        // LOW is left.
@@ -492,6 +510,7 @@ void opFour()
     speedCNCY = 1000;                                             // 1 = one Hz.
     if(operationFour==false)                                     // current operation not yet performed.
     {
+      //DEBUG_PORT.println("operationFour in progress.");
       operationNumber = "four";
       YZeroingStepsTotal = 53645;                                // 3 grid
       dirStateCNCY = HIGH;                                        // LOW is left.
@@ -756,10 +775,12 @@ void opFifteen()
     if((XZeroingStepsTotal <= XZeroingStep)&&(operationFifteen==false))                    // Tells us that current operation is complete.
     {
       move2ColumnsForwards = true;                                 // prepare for machine moving one column forwards.
+      currentEncoderValue = 0;
+      previousEncoderValue = encoderCount;
       operationFifteen=true;
       XZeroingStep=0;
       operationState=true;                                    // All operations have finished.
-      DEBUG_PORT.print("move2ColumnsForwards = ");DEBUG_PORT.println(move2ColumnsForwards);
+      //DEBUG_PORT.print("move2ColumnsForwards = ");DEBUG_PORT.println(move2ColumnsForwards);
     }
   }
 }
@@ -771,12 +792,13 @@ void move2ColumnsForward()
   CNC_TIMER_R();
   if (move2ColumnsForwards == true)                                                            //This is made 'true' in op 15.
   {
+    currentEncoderValue = encoderCount - previousEncoderValue;
     preventSteering = false;                                                                   // Enable auto steering.
-    if (pixyBarData < 34)                                                                      // This is where barcode reached is reset to false.
+    if (currentEncoderValue < 10000)                                                                      // This is where barcode reached is reset to false.
     {
       barcodeReached = false;                                                                  // Move slowly forwards.      
     }
-    if ((navState==HIGH)&&(pixyBarData>=34)&&(pixyBarcode==3)&&(barcodeReached == false))      // Need to allow the machine to move away from a previous barcode so that it is no longer visible. State change?
+    if ((navState==HIGH)&&(currentEncoderValue > 10000)&&(barcodeReached == false))      // Need to allow the machine to move away from a previous barcode so that it is no longer visible. State change?
     {
     //DEBUG_PORT.print("pixyBarData (line 1739) = ");DEBUG_PORT.println(pixyBarData);
       speedTimerAsyncRightA = 665;                                                             // Stops the machine at the new barcode position, if a barcode '3' is seen and pixy navigation (navState) is enabled.
@@ -877,6 +899,14 @@ void weeding()
 }   // void weeding
 void weedingBegins()
 {
+  if((controlState==LOW)&&(weedingBegin == false))
+  {
+    digitalWrite(35,LOW);  // Step x RHS axis
+    digitalWrite(12,LOW);  // Step x LHS axis
+    digitalWrite(33,LOW);  // Step y axis
+    digitalWrite(31,LOW);  // Step z axis
+    digitalWrite(29,LOW);  // Step r axis
+  }
   if((weedingBegin == true)&&(controlState==LOW))  // weedingBegin occurs in void opThree.
   {
     speedCNCZ = 2000;                                             // 1 = one Hz.
