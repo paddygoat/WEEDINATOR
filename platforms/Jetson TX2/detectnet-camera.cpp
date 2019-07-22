@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -49,6 +49,7 @@
 
 #include "cudaMappedMemory.h"
 #include "cudaNormalize.h"
+#include "cudaResize.h"
 #include "cudaFont.h"
 
 #include "detectNet.h"
@@ -67,11 +68,11 @@ int myBoxArea[25];
 int myBoxCentreX[25];
 int myBoxCentreY[25];
 int myNumberOfBoxes;
-int nonant;
-int nonantDevianceX[9];              // The difference between the nonant actual coordinate and what they should be, to steer machine.
-int nonantDevianceY[9];
-int finalNonantDevianceX;
-int finalNonantDevianceY;
+int sextant;
+int sextantDevianceX[9];              // The difference between the sextant actual coordinate and what they should be, to steer machine.
+int sextantDevianceY[9];
+int finalsextantDevianceX;
+int finalsextantDevianceY;
 int myArray[4][4]; 
 int intBB[4];
 int top;
@@ -126,37 +127,7 @@ void paddyOpenI2C()
 /////////////////////////////////////////////////////////////////////////////////////////
 void I2CDataHandler()
 {
-  int stop =0;
-  // Stop:
-  if (( finalNonantDevianceY >-10 ) && ( finalNonantDevianceY <10 ))
-  {
-    i2cwrite(3);
-    stop = 1;
-  }
-  else
-  {
-    stop =0;
-  }
-  // Turn left and drive forwards:
-  if (( finalNonantDevianceX <0 ) && ( finalNonantDevianceY <-10 ) && (stop ==0))
-  {
-    {i2cwrite(1);}                                             // send the integer "1".
-  }
-  // Turn right and drive forwards:
-  if (( finalNonantDevianceX >=0 ) && ( finalNonantDevianceY <-10 ) && (stop ==0))
-  {
-    {i2cwrite(2);}
-  }
-  // Turn left and drive backwards:
-  if (( finalNonantDevianceX >=0 ) && ( finalNonantDevianceY >10 ) && (stop ==0))
-  {
-    {i2cwrite(4);}
-  }
-  // Turn right and drive backwards:
-  if (( finalNonantDevianceX <0 ) && ( finalNonantDevianceY >10 ) && (stop ==0))
-  {
-    {i2cwrite(5);}
-  }
+    i2cwrite(finalsextantDevianceX);      // Camera pan value, mapped to 0 -> 200.
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char** argv )
@@ -250,7 +221,7 @@ int main( int argc, char** argv )
 	}
 	else
 	{
-		texture = glTexture::Create(camera->GetWidth(), camera->GetHeight(), GL_RGBA32F_ARB/*GL_RGBA8*/);
+		texture = glTexture::Create(camera->GetWidth()/2.5, camera->GetHeight()/2.5, GL_RGBA32F_ARB/*GL_RGBA8*/);
 
 		if( !texture )
 			printf("detectnet-camera:  failed to create openGL texture\n");
@@ -300,13 +271,13 @@ int main( int argc, char** argv )
 	
 		if( net->Detect((float*)imgRGBA, camera->GetWidth(), camera->GetHeight(), bbCPU, &numBoundingBoxes, confCPU))
 		{
-			for( int k=0; k < 9; k++ )
+			for( int k=0; k < 6; k++ )
 			{
- 				nonantDevianceX[k] =  0;
-				nonantDevianceY[k] =  0;
+ 				sextantDevianceX[k] =  0;
+				sextantDevianceY[k] =  0;
 			}
-			int averageNonantDevianceX = 0;
-			int averageNonantDevianceY = 0;
+			int averagesextantDevianceX = 0;
+			int averagesextantDevianceY = 0;
 
 			printf(" %i bounding BOXES detected\n", numBoundingBoxes);
 		
@@ -331,58 +302,61 @@ int main( int argc, char** argv )
                                 myBoxArea[n] = (intBB[2]-intBB[0]) * (intBB[3]-intBB[1]);
                                 myBoxCentreX[n] = (intBB[0]+intBB[2])/2;
                                 myBoxCentreY[n] = (intBB[1]+intBB[3])/2;
-                                if( myBoxArea[n] < 500000 )
+                                if( myBoxArea[n] < 2000000 )
 				{
                                 	//printf(" Box Area (%i) = %i \n",n,myBoxArea[n]);                          // Print the area (size) of the box.
-                                	//printf(" Box Centre (x,%i) = %i \n",n,myBoxCentreX[n]);                   // Print the box centre (x) coordinate.
+                                	printf(" Box Centre (x,%i) = %i \n",n,myBoxCentreX[n]);                   // Print the box centre (x) coordinate.
                                 	//printf(" Box Centre (y,%i) = %i \n",n,myBoxCentreY[n]);                   // Print the box centre (y) coordinate.
-					// Divide up into 'Nonants' (the 9 version of quadrants).                 // 1200/3 = 400, 720/3 = 240.
-					// Or divide into sextants eg 1920/3 = 640:
-					if (( myBoxCentreX[n] <= 640 ) && ( myBoxCentreY[n] <= 540 ))
+		
+					// Divide into sextants eg 1920/3 = 640 ,    1080/2 = 540.
+					// Divide into sextants eg 4096/3 = 1365,    4096*2/3 = 2731,    2160/2 = 1080
+					// 4096/6 = 683  , 2160/4 = 540.
+
+					if (( myBoxCentreX[n] <= 1365 ) && ( myBoxCentreY[n] <= 1080 ))       // Grid box 0.
 					{
-						nonant = 0;
-						nonantDevianceX[0] =  myBoxCentreX[n] -320;
-						nonantDevianceY[0] =  myBoxCentreY[n] -270;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 0;
+						sextantDevianceX[0] =  myBoxCentreX[n] -683;
+						sextantDevianceY[0] =  myBoxCentreY[n] -540;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
-					if (( myBoxCentreX[n] >= 641 ) && ( myBoxCentreX[n] <= 1280 ) && ( myBoxCentreY[n] <= 540 ))
+					if (( myBoxCentreX[n] >= 1366 ) && ( myBoxCentreX[n] <= 2731 ) && ( myBoxCentreY[n] <= 1080 ))     // Grid box 1 (centre box in top row)
 					{
-						nonant = 1;
-						nonantDevianceX[1] =  myBoxCentreX[n] -960;
-						nonantDevianceY[1] =  myBoxCentreY[n] -270;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 1;
+						sextantDevianceX[1] =  myBoxCentreX[n] -2048;
+						sextantDevianceY[1] =  myBoxCentreY[n] -540;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
-					if (( myBoxCentreX[n] >= 1281 ) && ( myBoxCentreY[n] <= 540 ))
+					if (( myBoxCentreX[n] >= 2732 ) && ( myBoxCentreY[n] <= 1080 ))      // Grid box 2.
 					{
-						nonant = 2;
-						nonantDevianceX[2] =  myBoxCentreX[n] -1600;
-						nonantDevianceY[2] =  myBoxCentreY[n] -270;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 2;
+						sextantDevianceX[2] =  myBoxCentreX[n] -3413;
+						sextantDevianceY[2] =  myBoxCentreY[n] -540;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
-					if (( myBoxCentreX[n] <= 640 ) && ( myBoxCentreY[n] >= 541 ))
+					if (( myBoxCentreX[n] <= 1365 ) && ( myBoxCentreY[n] >= 1081 ))        // Grid box 3 (left box in bottom row).
 					{
-						nonant = 3;
-						nonantDevianceX[3] =  myBoxCentreX[n] -320;
-						nonantDevianceY[3] =  myBoxCentreY[n] -810;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 3;
+						sextantDevianceX[3] =  myBoxCentreX[n] -683;
+						sextantDevianceY[3] =  myBoxCentreY[n] -1620;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
-					if (( myBoxCentreX[n] >= 641 ) && ( myBoxCentreX[n] <= 1281 ) && ( myBoxCentreY[n] >= 541 ))
+					if (( myBoxCentreX[n] >= 1366 ) && ( myBoxCentreX[n] <= 2732 ) && ( myBoxCentreY[n] >= 1081 ))      // Grid box 4 (middle box in bottom row).
 					{
-						nonant = 4;
-						nonantDevianceX[4] =  myBoxCentreX[n] -960;
-						nonantDevianceY[4] =  myBoxCentreY[n] -810;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 4;
+						sextantDevianceX[4] =  myBoxCentreX[n] -2048;
+						sextantDevianceY[4] =  myBoxCentreY[n] -1620;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
-					if (( myBoxCentreX[n] >= 1281 ) && ( myBoxCentreY[n] >= 541 ))
+					if (( myBoxCentreX[n] >= 2732 ) && ( myBoxCentreY[n] >= 1081 ))      // Grid box 5 (right box in bottom row).
 					{
-						nonant = 5;
-						nonantDevianceX[5] =  myBoxCentreX[n] -1600;
-						nonantDevianceY[5] =  myBoxCentreY[n] -810;
-						//printf(" Nonant (%i) = %i \n",n,nonant);
+						sextant = 5;
+						sextantDevianceX[5] =  myBoxCentreX[n] -3413;
+						sextantDevianceY[5] =  myBoxCentreY[n] -1620;
+						printf(" sextant (%i) = %i \n",n,sextant);
 					}
 
 
-					//printf(" Nonant (%i) = %i \n",n,nonant);
+					//printf(" sextant (%i) = %i \n",n,sextant);
                                 	//printf("..................................................... \n");
                                 	//I2CDataHandler();
 				}
@@ -405,20 +379,20 @@ int main( int argc, char** argv )
 				}
 			}  // End of for( int n=0; n < numBoundingBoxes; n++ )
 
-			int totalNonantDevianceX =0;
-			int totalNonantDevianceY =0;
-			finalNonantDevianceX =0;
-			finalNonantDevianceY =0;
-			for( int k=0; k < 9; k++ )
+			int totalsextantDevianceX =0;
+			int totalsextantDevianceY =0;
+			finalsextantDevianceX =0;
+			finalsextantDevianceY =0;
+			for( int k=0; k < 6; k++ )
 			{
- 				totalNonantDevianceX = totalNonantDevianceX + nonantDevianceX[k];
-				totalNonantDevianceY = totalNonantDevianceY + nonantDevianceY[k];
+ 				totalsextantDevianceX = totalsextantDevianceX + sextantDevianceX[k];
+				totalsextantDevianceY = totalsextantDevianceY + sextantDevianceY[k];
 			}
-			finalNonantDevianceX = totalNonantDevianceX/n;
-			finalNonantDevianceY = totalNonantDevianceY/n;
+			finalsextantDevianceX = (totalsextantDevianceX/n + 683 )/6.825 ;           // Map to 0 -> 200. '100' means machine drives exactly straight on.
+			finalsextantDevianceY = (totalsextantDevianceY/n + 540 )/5.4 ;
 			I2CDataHandler();
-			printf(" finalNonantDevianceX = %i \n",finalNonantDevianceX);
-			printf(" finalNonantDevianceY = %i \n",finalNonantDevianceY);
+			printf(" finalsextantDevianceX = %i \n",finalsextantDevianceX);
+			printf(" finalsextantDevianceY = %i \n",finalsextantDevianceY);
 			printf("..................................................... \n");
 
 			/*if( font != NULL )
@@ -448,6 +422,9 @@ int main( int argc, char** argv )
 			if( texture != NULL )
 			{
 				// rescale image pixel intensities for display
+				CUDA(cudaResizeRGBA((float4*)imgRGBA, camera->GetWidth(), camera->GetHeight(), 
+					(float4*)imgRGBA, texture->GetWidth(), texture->GetHeight()));
+
 				CUDA(cudaNormalizeRGBA((float4*)imgRGBA, make_float2(0.0f, 255.0f), 
 								   (float4*)imgRGBA, make_float2(0.0f, 1.0f), 
 		 						   camera->GetWidth(), camera->GetHeight()));

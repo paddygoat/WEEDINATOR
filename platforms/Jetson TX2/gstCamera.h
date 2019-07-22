@@ -80,10 +80,18 @@ public:
 	// Default resolution, unless otherwise specified during Create()
 	//static const uint32_t DefaultWidth  = 1280;
 	//static const uint32_t DefaultHeight = 720;
-	static const uint32_t DefaultWidth  = 1920;
-	static const uint32_t DefaultHeight = 1080;
-	//static const uint32_t DefaultWidth  = 4096;
+
+	//static const uint32_t DefaultWidth  = 1920;
+	//static const uint32_t DefaultHeight = 1080;
+
+	static const uint32_t DefaultWidth  = 4096;
+	static const uint32_t DefaultHeight = 2160;
+
+	//static const uint32_t DefaultWidth  = 3840;
 	//static const uint32_t DefaultHeight = 2160;
+
+	//static const uint32_t DefaultWidth  = 2560;
+	//static const uint32_t DefaultHeight = 1440;
 	
 private:
 	static void onEOS(_GstAppSink* sink, void* user_data);
